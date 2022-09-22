@@ -2,3 +2,5 @@ python-dotenv~=0.19.1
 radiant_mlhub==0.5.2
 rasterio==1.3.0
 fire~=0.4.0
+pandas==1.4.3
+numpy==1.23.2
