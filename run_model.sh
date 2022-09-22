@@ -1,4 +1,6 @@
 #!/usr/bin/env bash
+export INPUT_DATA=data/input
+export OUTPUT_DATA=data/output
 
 set -e
 
@@ -12,7 +14,7 @@ if [[ -z "${OUTPUT_DATA}" ]]; then
     exit 1
 fi
 
-python src/main_inferencing.py \
+python -m src.scripts.main_inferencing.py \
     --model_dir=${INPUT_DATA}/checkpoint \
     --chips_dir=${INPUT_DATA}/chips \
     --output_dir=${OUTPUT_DATA}

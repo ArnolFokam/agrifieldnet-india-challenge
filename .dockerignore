@@ -27,3 +27,5 @@ data/output
 **/values.dev.yaml
 **/venv
 
+# user-defined
+data/train_test
