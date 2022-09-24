@@ -39,7 +39,7 @@ def get_folder_ids(data_dir, dataset_name, collection):
         return collention_folder_ids
 
 def main(
-    model: str,
+    format: str,
     dataset_name: str = 'ref_agrifieldnet_competition_v1',
     data_dir: str = 'data/train_test',
     selected_bands: List[str] = ['B01', 'B02', 'B03', 'B04', 'B05', 'B06', 'B07', 'B08', 'B8A', 'B09', 'B11', 'B12']):
@@ -47,7 +47,7 @@ def main(
     Preprocess data for segmentation
 
     Args:
-        model (str):  model that will use the preprocessed data
+        format (str):  format in which the preprocessed data will be used
         dataset_name (str, optional): name of the dataset. Defaults to 'ref_agrifieldnet_competition_v1'.
         data_dir (str, optional): directories where to store the triaining data. Defaults to 'data/train_test'.
         selected_bands (List[str], optional): number of bands to use. Defaults to empty
@@ -57,9 +57,9 @@ def main(
     source_collection = f'{dataset_name}_source'
     train_label_collection = f'{dataset_name}_labels_train'
 
-    if model == "gmm":
+    if format == "tabular":
 
-        logging.info("Preprocessing data for a GMM model...")
+        logging.info("Preprocessing data for a tabular training...")
 
         def get_all_band_pixel_for_crop(folder_ids, crop):
 
@@ -116,7 +116,7 @@ def main(
             ])
 
 
-        save_file = f"{get_dir(data_dir, 'preprocessed')}/gmm.csv"
+        save_file = f"{get_dir(data_dir, 'preprocessed')}/tabular.csv"
         preprocessed_data_df.to_csv(save_file)
         logging.info(f"Saved preprocessed files to {save_file}")
         # with open(save_file, 'w') as f:
@@ -124,7 +124,7 @@ def main(
         #    logging.info(f"Saved preprocessed files to {save_file}")
 
     else:
-        raise Exception("model not supported. Try models in the list ['gmm']")
+        raise Exception("model not supported. Try models in the list ['tabular']")
 
 
 
