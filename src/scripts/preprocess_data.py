@@ -73,6 +73,9 @@ def main(
                 with rasterio.open(f'{data_dir}/{dataset_name}/{train_label_collection}/{train_label_collection}_{idx}/raster_labels.tif') as src:
                     label_data = src.read()[0]
 
+                with rasterio.open(f'{data_dir}/{dataset_name}/{train_label_collection}/{train_label_collection}_{idx}/field_ids.tif') as src:
+                    field_data = src.read()[0]
+
                 # get bands for folder id
                 bands_src = [rasterio.open(f'{data_dir}/{dataset_name}/{source_collection}/{source_collection}_{idx}/{band}.tif') for band in selected_bands]
                 bands_array = [np.expand_dims(band.read(1), axis=0) for band in bands_src]
@@ -82,8 +85,13 @@ def main(
                 crop_bands = bands[:, label_data == crop].T
 
                 if len(crop_bands) > 0:
-                    # add crop index as last column (for csv dataframe stuffs)
-                    crop_bands = np.hstack([crop_bands, [[crop] for _ in range(crop_bands.shape[0])]])
+                    # add crop index and field id (for csv dataframe stuffs)
+                    crop_bands = np.hstack([
+                        crop_bands, 
+                        np.expand_dims(field_data[label_data == crop], axis=-1), 
+                        [[crop] for _ in range(crop_bands.shape[0])]
+                    ])
+
                     data.extend(crop_bands.tolist())
 
             # print(np.array(data).shape) print shape to ensure total number of pixel is correct
@@ -91,7 +99,7 @@ def main(
             return data
 
 
-        preprocessed_data_df = pd.DataFrame(columns = [*selected_bands, "crop"])
+        preprocessed_data_df = pd.DataFrame(columns = [*selected_bands, "field_id","crop"])
         #{
         #    "bands": selected_bands,
         #    "crops": defaultdict(lambda: {})
@@ -104,16 +112,16 @@ def main(
             # preprocessed_data["crops"][crops[crop]]["data"] = get_all_band_pixel_for_crop(folder_ids, int(crop))
             preprocessed_data_df = pd.concat([
                 preprocessed_data_df,
-                pd.DataFrame(get_all_band_pixel_for_crop(folder_ids, int(crop)), columns = [*selected_bands, "crop"])
+                pd.DataFrame(get_all_band_pixel_for_crop(folder_ids, int(crop)), columns = [*selected_bands, "field_id", "crop"])
             ])
 
 
-        logging.info(f"Saving preprocessed files to {save_file}")
         save_file = f"{get_dir(data_dir, 'preprocessed')}/gmm.csv"
         preprocessed_data_df.to_csv(save_file)
+        logging.info(f"Saved preprocessed files to {save_file}")
         # with open(save_file, 'w') as f:
-        #    logging.info(f"Saving preprocessed files to {save_file}")
         #    json.dump(preprocessed_data, f)
+        #    logging.info(f"Saved preprocessed files to {save_file}")
 
     else:
         raise Exception("model not supported. Try models in the list ['gmm']")
