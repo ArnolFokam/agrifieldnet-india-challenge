@@ -10,7 +10,7 @@ from radiant_mlhub import Dataset
 from src.helpers import get_dir
 
 load_dotenv()
-logging.basicConfig(format='%(asctime)s - %(levelname)s: %(message)s:', datefmt='%H:%M:%S')
+logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s: %(message)s:', datefmt='%H:%M:%S')
 
 MLHUB_API_KEY = os.getenv('MLHUB_API_KEY')
 
@@ -23,7 +23,7 @@ def main(
 
     Args:
         dataset_name (str, optional): name of the dataset. Defaults to 'ref_agrifieldnet_competition_v1'.
-        outpu_dir (str, optional): directories where to store the triaining data. Defaults to 'data/train_test'.
+        output_dir (str, optional): directories where to store the triaining data. Defaults to 'data/train_test'.
         selected_bands (List[str], optional): number of bands to use. Defaults to empty
     """
 
