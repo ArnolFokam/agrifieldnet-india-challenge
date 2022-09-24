@@ -8,6 +8,7 @@ from tqdm import tqdm
 import rasterio
 import numpy as np
 from collections import defaultdict
+import pandas as pd
 
 from src.helpers import get_dir
 
@@ -79,28 +80,40 @@ def main(
 
                 # get pixels with crop label per band
                 crop_bands = bands[:, label_data == crop].T
-                data.extend(crop_bands.tolist())
+
+                if len(crop_bands) > 0:
+                    # add crop index as last column (for csv dataframe stuffs)
+                    crop_bands = np.hstack([crop_bands, [[crop] for _ in range(crop_bands.shape[0])]])
+                    data.extend(crop_bands.tolist())
 
             # print(np.array(data).shape) print shape to ensure total number of pixel is correct
 
             return data
 
 
-        preprocessed_data = {
-            "bands": selected_bands,
-            "crops": defaultdict(lambda: {})
-        }
+        preprocessed_data_df = pd.DataFrame(columns = [*selected_bands, "crop"])
+        #{
+        #    "bands": selected_bands,
+        #    "crops": defaultdict(lambda: {})
+        #}
 
         for crop in crops.keys():
-            preprocessed_data["crops"][crop]["name"] = crops[crop]
+            # preprocessed_data["crops"][crop]["name"] = crops[crop]
 
             folder_ids = get_folder_ids(data_dir, dataset_name, train_label_collection)
-            preprocessed_data["crops"][crops[crop]]["data"] = get_all_band_pixel_for_crop(folder_ids, int(crop))
+            # preprocessed_data["crops"][crops[crop]]["data"] = get_all_band_pixel_for_crop(folder_ids, int(crop))
+            preprocessed_data_df = pd.concat([
+                preprocessed_data_df,
+                pd.DataFrame(get_all_band_pixel_for_crop(folder_ids, int(crop)), columns = [*selected_bands, "crop"])
+            ])
 
-        save_file = f"{get_dir(data_dir, 'preprocessed')}/gmm.json"
-        with open(save_file, 'w') as f:
-            logging.info(f"Saving preprocessed files to {save_file}")
-            json.dump(preprocessed_data, save_file)
+
+        logging.info(f"Saving preprocessed files to {save_file}")
+        save_file = f"{get_dir(data_dir, 'preprocessed')}/gmm.csv"
+        preprocessed_data_df.to_csv(save_file)
+        # with open(save_file, 'w') as f:
+        #    logging.info(f"Saving preprocessed files to {save_file}")
+        #    json.dump(preprocessed_data, f)
 
     else:
         raise Exception("model not supported. Try models in the list ['gmm']")
