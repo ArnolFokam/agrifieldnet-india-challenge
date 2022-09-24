@@ -1,0 +1,111 @@
+import logging
+from typing import List
+
+import fire
+from dotenv import load_dotenv
+import json
+from tqdm import tqdm
+import rasterio
+import numpy as np
+from collections import defaultdict
+
+from src.helpers import get_dir
+
+load_dotenv()
+logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s: %(message)s:', datefmt='%H:%M:%S')
+
+crops = {
+    "1": "Wheat",
+    "2": "Mustard",
+    "3": "Lentil",
+    "4": "No Crop/Fallow",
+    "5": "Green pea",
+    "6": "Sugarcane",
+    "8": "Garlic",
+    "9": "Maize",
+    "13": "Gram",
+    "14": "Coriander",
+    "15": "Potato",
+    "16": "Bersem",
+    "36": "Rice",
+}
+
+def get_folder_ids(data_dir, dataset_name, collection):
+    with open (f'{data_dir}/{dataset_name}/{collection}/collection.json') as f:
+        collention_json = json.load(f)
+        collention_folder_ids = [i['href'].split('_')[-1].split('.')[0] for i in collention_json['links'][4:]]
+
+        return collention_folder_ids
+
+def main(
+    model: str,
+    dataset_name: str = 'ref_agrifieldnet_competition_v1',
+    data_dir: str = 'data/train_test',
+    selected_bands: List[str] = ['B01', 'B02', 'B03', 'B04', 'B05', 'B06', 'B07', 'B08', 'B8A', 'B09', 'B11', 'B12']):
+    """
+    Preprocess data for segmentation
+
+    Args:
+        model (str):  model that will use the preprocessed data
+        dataset_name (str, optional): name of the dataset. Defaults to 'ref_agrifieldnet_competition_v1'.
+        data_dir (str, optional): directories where to store the triaining data. Defaults to 'data/train_test'.
+        selected_bands (List[str], optional): number of bands to use. Defaults to empty
+    """
+
+
+    source_collection = f'{dataset_name}_source'
+    train_label_collection = f'{dataset_name}_labels_train'
+
+    if model == "gmm":
+
+        logging.info("Preprocessing data for a GMM model...")
+
+        def get_all_band_pixel_for_crop(folder_ids, crop):
+
+            pbar = tqdm(folder_ids)
+            pbar.set_description(f'Extracting for crop "{crops[str(crop)]}"')
+
+            data = []
+
+            for idx in pbar:
+
+                with rasterio.open(f'{data_dir}/{dataset_name}/{train_label_collection}/{train_label_collection}_{idx}/raster_labels.tif') as src:
+                    label_data = src.read()[0]
+
+                # get bands for folder id
+                bands_src = [rasterio.open(f'{data_dir}/{dataset_name}/{source_collection}/{source_collection}_{idx}/{band}.tif') for band in selected_bands]
+                bands_array = [np.expand_dims(band.read(1), axis=0) for band in bands_src]
+                bands = np.vstack(bands_array)
+
+                # get pixels with crop label per band
+                crop_bands = bands[:, label_data == crop].T
+                data.extend(crop_bands.tolist())
+
+            # print(np.array(data).shape) print shape to ensure total number of pixel is correct
+
+            return data
+
+
+        preprocessed_data = {
+            "bands": selected_bands,
+            "crops": defaultdict(lambda: {})
+        }
+
+        for crop in crops.keys():
+            preprocessed_data["crops"][crop]["name"] = crops[crop]
+
+            folder_ids = get_folder_ids(data_dir, dataset_name, train_label_collection)
+            preprocessed_data["crops"][crops[crop]]["data"] = get_all_band_pixel_for_crop(folder_ids, int(crop))
+
+        save_file = f"{get_dir(data_dir, 'preprocessed')}/gmm.json"
+        with open(save_file, 'w') as f:
+            logging.info(f"Saving preprocessed files to {save_file}")
+            json.dump(preprocessed_data, save_file)
+
+    else:
+        raise Exception("model not supported. Try models in the list ['gmm']")
+
+
+
+if __name__ == "__main__":
+    fire.Fire(main)
