@@ -132,3 +132,5 @@ dmypy.json
 #user-defined
 data/train_test
 .vscode/launch.json
+exps/tracking
+catboost_info/
