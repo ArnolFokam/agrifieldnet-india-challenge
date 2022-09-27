@@ -41,7 +41,7 @@ def get_folder_ids(data_dir, dataset_name, collection):
 def main(
     format: str,
     dataset_name: str = 'ref_agrifieldnet_competition_v1',
-    data_dir: str = 'data/train_test',
+    data_dir: str = 'data/source',
     selected_bands: List[str] = ['B01', 'B02', 'B03', 'B04', 'B05', 'B06', 'B07', 'B08', 'B8A', 'B09', 'B11', 'B12']):
     """
     Preprocess data for segmentation
@@ -98,18 +98,11 @@ def main(
 
             return data
 
-
         preprocessed_data_df = pd.DataFrame(columns = [*selected_bands, "field_id","crop"])
-        #{
-        #    "bands": selected_bands,
-        #    "crops": defaultdict(lambda: {})
-        #}
 
         for crop in crops.keys():
-            # preprocessed_data["crops"][crop]["name"] = crops[crop]
 
             folder_ids = get_folder_ids(data_dir, dataset_name, train_label_collection)
-            # preprocessed_data["crops"][crops[crop]]["data"] = get_all_band_pixel_for_crop(folder_ids, int(crop))
             preprocessed_data_df = pd.concat([
                 preprocessed_data_df,
                 pd.DataFrame(get_all_band_pixel_for_crop(folder_ids, int(crop)), columns = ["field_id", *selected_bands,  "crop"]),
@@ -119,9 +112,6 @@ def main(
         save_file = f"{get_dir(data_dir, 'preprocessed')}/tabular_train.csv"
         preprocessed_data_df.to_csv(save_file, index=False)
         logging.info(f"Saved preprocessed files to {save_file}")
-        # with open(save_file, 'w') as f:
-        #    json.dump(preprocessed_data, f)
-        #    logging.info(f"Saved preprocessed files to {save_file}")
 
     else:
         raise Exception("model not supported. Try models in the list ['tabular']")
