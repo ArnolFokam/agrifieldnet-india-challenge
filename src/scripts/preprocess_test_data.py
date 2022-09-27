@@ -88,8 +88,8 @@ def main(
 
                     # add crop index and field id (for csv dataframe stuffs)
                     crop_bands = np.hstack([
-                        [[fid] for _ in range(crop_bands.shape[0])], 
                         crop_bands, 
+                        [[fid] for _ in range(crop_bands.shape[0])], 
                     ])
 
                     data.extend(crop_bands.tolist())
