@@ -16,7 +16,7 @@ MLHUB_API_KEY = os.getenv('MLHUB_API_KEY')
 
 def main(
     dataset_name: str = 'ref_agrifieldnet_competition_v1',
-    output_dir: str = 'data/train_test',
+    output_dir: str = 'data/source',
     selected_bands: List[str] = ['B01', 'B02', 'B03', 'B04', 'B05', 'B06', 'B07', 'B08', 'B8A', 'B09', 'B11', 'B12']):
     """
     Donwnload the dataset
