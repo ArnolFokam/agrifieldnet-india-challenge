@@ -1,6 +1,7 @@
 import os
 import logging
 import getpass
+import pickle
 from typing import List
 
 import torch
@@ -27,10 +28,11 @@ class AgriFieldDataset(torch.utils.data.Dataset):
         root_dir: str, 
         train: bool = True,
         download: bool = False,
+        save_cache: bool = False,
         bands: Optional[List[str]] = ['B01', 'B02', 'B03', 'B04', 'B05', 'B06', 'B07', 'B08', 'B8A', 'B09', 'B11', 'B12'],
         transform: Optional[Callable] = None):
 
-        self.bands = bands
+        self.selected_bands = bands
         self.train = train
         self.root_dir = root_dir
         self.transform = transform
@@ -51,7 +53,7 @@ class AgriFieldDataset(torch.utils.data.Dataset):
         self.class_meta = self.load_meta_class()
 
         pbar = tqdm(folder_ids)
-        pbar.set_description('Extracting Images, Field Masks and Target Variable')
+        pbar.set_description(f'Extracting data for {"train" if self.train else "test"} set')
 
         for fidx in pbar:
 
@@ -59,7 +61,7 @@ class AgriFieldDataset(torch.utils.data.Dataset):
                 field_data = src.read()[0]
 
             # get bands for folder id
-            bands_src = [rasterio.open(f'{self.root_dir}/{dataset_name}/{source_collection}/{source_collection}_{fidx}/{band}.tif') for band in self.bands]
+            bands_src = [rasterio.open(f'{self.root_dir}/{dataset_name}/{source_collection}/{source_collection}_{fidx}/{band}.tif') for band in self.selected_bands]
             bands_array = [np.expand_dims(band.read(1), axis=0) for band in bands_src]
             bands = np.vstack(bands_array)
             
@@ -99,7 +101,31 @@ class AgriFieldDataset(torch.utils.data.Dataset):
             for key in self.class_meta.keys():
                 self.class_meta[key]["weight"] =  self.targets.count(key) / len(self.targets)
 
+        self.imgs: List[np.ndarray] = []
 
+        if save_cache:
+            logging.info('Caching data for subsequent use...')
+
+            with open(f'{self.root_dir}/imgs_{"_".join(self.selected_bands)}.{"train" if self.train else "test"}.cache.pkl', 'wb') as f:
+                pickle.dump(self.field_ids, f, protocol=pickle.HIGHEST_PROTOCOL)
+
+            with open(f'{self.root_dir}/field_ids.{"train" if self.train else "test"}.cache.pkl', 'wb') as f:
+                pickle.dump(self.field_ids, f, protocol=pickle.HIGHEST_PROTOCOL)
+
+            with open(f'{self.root_dir}/field_masks.{"train" if self.train else "test"}.cache.pkl', 'wb') as f:
+                pickle.dump(self.field_masks, f, protocol=pickle.HIGHEST_PROTOCOL)
+
+            with open(f'{self.root_dir}/field_masks.{"train" if self.train else "test"}.cache.pkl', 'wb') as f:
+                pickle.dump(self.field_masks, f, protocol=pickle.HIGHEST_PROTOCOL)
+
+            with open(f'{self.root_dir}/class_meta.{"train" if self.train else "test"}.cache.pkl', 'wb') as f:
+                pickle.dump(self.class_meta, f, protocol=pickle.HIGHEST_PROTOCOL)
+
+            if self.train:
+                with open(f'{self.root_dir}/targets.{"train" if self.train else "test"}.cache.pkl', 'wb') as f:
+                    pickle.dump(self.targets, f, protocol=pickle.HIGHEST_PROTOCOL)
+
+            
 
     def __getitem__(self, index: str):
         pass
@@ -112,7 +138,7 @@ class AgriFieldDataset(torch.utils.data.Dataset):
         bands: Optional[List[str]] = ['B01', 'B02', 'B03', 'B04', 'B05', 'B06', 'B07', 'B08', 'B8A', 'B09', 'B11', 'B12']):
 
         if not MLHUB_API_KEY:
-            logging.warning('MLHub Api Key not found. Do you save it as an environmental variable?')
+            logging.warning('MLHub Api Key not found. Consider writing it in an .env file as "MLHUB_API_KEY"')
             os.environ['MLHUB_API_KEY'] =  getpass.getpass(prompt="MLHub API Key: ")
 
         # fetch informatin about the dataset
@@ -161,4 +187,4 @@ class AgriFieldDataset(torch.utils.data.Dataset):
 
 
 if __name__ == '__main__':
-    ds = AgriFieldDataset('data/source', train=True)
+    ds = AgriFieldDataset('data/source', save_cache=True, train=True)
