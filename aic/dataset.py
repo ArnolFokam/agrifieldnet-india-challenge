@@ -46,9 +46,9 @@ class AgriFieldDataset(torch.utils.data.Dataset):
 
         self.imgs: List[np.ndarray] = []
         self.field_ids: List[str] = []
-        # self.field_id_to_imgs: List[str, int] = {}
         self.field_masks: List[np.ndarray] = []
         self.targets: List[int] = []
+        self.class_meta = self.load_meta_class()
 
         pbar = tqdm(folder_ids)
         pbar.set_description('Extracting Images, Field Masks and Target Variable')
@@ -77,18 +77,6 @@ class AgriFieldDataset(torch.utils.data.Dataset):
                 # append field ids
                 self.field_ids.append(fid)
 
-                # some chips have more that one training field, so, 
-                # it is better to have a list of unique chips 
-                # and a reference to the correct chip per field 
-                # id rather than having the same chip for every field id
-                # more space economical
-                #
-                # NOTE: we can't build a mapping because the field ids 
-                # and the bands are in a many-to-many relationship
-                #
-                # last_img_index = len(self.imgs) - 1 # index of the current spectral bands
-                # self.field_id_to_imgs[fid] = last_img_index
-                
                 # append spectral bands
                 self.imgs.append(bands)
 
@@ -105,6 +93,12 @@ class AgriFieldDataset(torch.utils.data.Dataset):
 
                     # append label
                     self.targets.append(label)
+
+        # get class weights to handle imbalance
+        if self.train:
+            for key in self.class_meta.keys():
+                self.class_meta[key]["weight"] =  self.targets.count(key) / len(self.targets)
+
 
 
     def __getitem__(self, index: str):
@@ -138,7 +132,33 @@ class AgriFieldDataset(torch.utils.data.Dataset):
             collection_filter=filters
         )
 
-    
+    def load_meta_class(self):
+        """
+        Returns a mapping of the true index 
+        from the dataset to contiguous index 
+        from 0 - 13 for classification loss
+        """
+        crops = {
+            1: "Wheat",
+            2: "Mustard",
+            3: "Lentil",
+            4: "No Crop/Fallow",
+            5: "Green pea",
+            6: "Sugarcane",
+            8: "Garlic",
+            9: "Maize",
+            13: "Gram",
+            14: "Coriander",
+            15: "Potato",
+            16: "Bersem",
+            36: "Rice"
+        }
+
+        return { k: { "label": crops[k], "loss_index": v } for k, v in zip(crops.keys(), range(len(crops.keys())))}
+
+
+        
+
 
 if __name__ == '__main__':
     ds = AgriFieldDataset('data/source', train=True)
