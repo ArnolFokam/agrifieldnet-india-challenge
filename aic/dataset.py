@@ -44,7 +44,7 @@ class AgriFieldDataset(torch.utils.data.Dataset):
         if download:
             self.download_data(root_dir, dataset_name, bands)
 
-        self.save_cache_dir = get_dir(f"{self.root_dir}'/cache_{'_'.join(self.selected_bands)}")
+        self.save_cache_dir = get_dir(f"{self.root_dir}/cache_{'_'.join(self.selected_bands)}")
 
         try:
             logging.info('Loading data from cache...')
@@ -64,7 +64,7 @@ class AgriFieldDataset(torch.utils.data.Dataset):
                 with open(f'{self.save_cache_dir}/targets.train.cache.pkl', 'rb') as f:
                     self.targets = pickle.load(f)
 
-        except (IOError, OSError, pickle.PickleError, pickle.UnpicklingError):
+        except (IOError, EOFError, OSError, pickle.PickleError, pickle.UnpicklingError):
             logging.info('Error occured during cache data loading. Preprocessing data again...')
 
             folder_ids = get_folder_ids(self.root_dir, dataset_name, label_collection)
@@ -168,9 +168,9 @@ class AgriFieldDataset(torch.utils.data.Dataset):
         field_id, image, field_mask, target = self.field_ids[index], self.imgs[index], self.field_masks[index], self.targets[index]
         
         if self.transform:
-            transform = self.transform(image=image, mask=field_mask)
-            image = transform["image"]
-            field_mask = transform["mask"]
+            transformed = self.transform(image=image, mask=field_mask)
+            image = transformed["image"]
+            field_mask = transformed["mask"]
 
         return int(field_id), torch.FloatTensor(image), torch.FloatTensor(field_mask), int(self.class_meta[target]["loss_label"])
 
@@ -234,7 +234,7 @@ class AgriFieldDataset(torch.utils.data.Dataset):
 
 
 if __name__ == '__main__':
-    ds = AgriFieldDataset('data/source', save_cache=True, train=True)
+    ds = AgriFieldDataset('data/source',  save_cache=True, train=True)
     loader = torch.utils.data.DataLoader(ds, batch_size=20, shuffle=False)
     loader = iter(loader)
     fids, imgs, masks, target = next(loader)
