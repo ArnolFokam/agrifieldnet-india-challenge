@@ -7,7 +7,7 @@ import fire
 from dotenv import load_dotenv
 from radiant_mlhub import Dataset
 
-from src.helpers import get_dir
+from aic.helpers import get_dir
 
 load_dotenv()
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s: %(message)s:', datefmt='%H:%M:%S')
