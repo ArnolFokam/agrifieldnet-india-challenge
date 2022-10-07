@@ -29,7 +29,7 @@ class AgriFieldDataset(torch.utils.data.Dataset):
         train: bool = True,
         download: bool = False,
         save_cache: bool = False,
-        bands: Optional[List[str]] = ['B01', 'B02', 'B03', 'B04', 'B05', 'B06', 'B07', 'B08', 'B8A', 'B09', 'B11', 'B12'],
+        bands: Optional[List[str]] = ['B04', 'B05', 'B06', 'B07', 'B08', 'B8A', 'B09', 'B11', 'B12'],
         transform: Optional[Callable] = None):
 
         self.selected_bands = bands
@@ -44,87 +44,106 @@ class AgriFieldDataset(torch.utils.data.Dataset):
         if download:
             self.download_data(root_dir, dataset_name, bands)
 
-        folder_ids = get_folder_ids(self.root_dir, dataset_name, label_collection)
+        # save_cache_dir = ""
 
-        self.imgs: List[np.ndarray] = []
-        self.field_ids: List[str] = []
-        self.field_masks: List[np.ndarray] = []
-        self.targets: List[int] = []
-        self.class_meta = self.load_meta_class()
+        try:
+            with open(f'{self.root_dir}/imgs_{"_".join(self.selected_bands)}.{"train" if self.train else "test"}.cache.pkl', 'rb') as f:
+                self.imgs = pickle.load(f)
 
-        pbar = tqdm(folder_ids)
-        pbar.set_description(f'Extracting data for {"train" if self.train else "test"} set')
+            with open(f'{self.root_dir}/field_ids.{"train" if self.train else "test"}.cache.pkl', 'rb') as f:
+                self.field_ids = pickle.load(f)
 
-        for fidx in pbar:
+            with open(f'{self.root_dir}/field_masks.{"train" if self.train else "test"}.cache.pkl', 'rb') as f:
+                self.field_masks = pickle.load(f)
 
-            with rasterio.open(f'{self.root_dir}/{dataset_name}/{label_collection}/{label_collection}_{fidx}/field_ids.tif') as src:
-                field_data = src.read()[0]
-
-            # get bands for folder id
-            bands_src = [rasterio.open(f'{self.root_dir}/{dataset_name}/{source_collection}/{source_collection}_{fidx}/{band}.tif') for band in self.selected_bands]
-            bands_array = [np.expand_dims(band.read(1), axis=0) for band in bands_src]
-            bands = np.vstack(bands_array)
-            
+            with open(f'{self.root_dir}/class_meta.{"train" if self.train else "test"}.cache.pkl', 'rb') as f:
+                self.class_meta = pickle.load(f)
 
             if self.train:
-                with rasterio.open(f'{self.root_dir}/{dataset_name}/{label_collection}/{label_collection}_{fidx}/raster_labels.tif') as src:
-                    label_data = src.read()[0]
+                with open(f'{self.root_dir}/targets.train.cache.pkl', 'rb') as f:
+                    self.targets = pickle.load(f)
 
-            # get unique field ids in the field data
-            field_ids = list(np.unique(field_data))
-            field_ids.remove(0)
+        except (IOError, OSError, pickle.PickleError, pickle.UnpicklingError):
+            folder_ids = get_folder_ids(self.root_dir, dataset_name, label_collection)
 
-            for fid in field_ids:
+            self.imgs: List[np.ndarray] = []
+            self.field_ids: List[str] = []
+            self.field_masks: List[np.ndarray] = []
+            self.targets: List[int] = []
+            self.class_meta = self.load_meta_class()
 
-                # append field ids
-                self.field_ids.append(fid)
+            pbar = tqdm(folder_ids)
+            pbar.set_description(f'Extracting data for {"train" if self.train else "test"} set')
 
-                # append spectral bands
-                self.imgs.append(bands)
+            for fidx in pbar:
 
-                # append field mask
-                mask = np.where(field_data == fid, 1.0, 0.0)
-                self.field_masks.append(mask)
+                with rasterio.open(f'{self.root_dir}/{dataset_name}/{label_collection}/{label_collection}_{fidx}/field_ids.tif') as src:
+                    field_data = src.read()[0]
+
+                # get bands for folder id
+                bands_src = [rasterio.open(f'{self.root_dir}/{dataset_name}/{source_collection}/{source_collection}_{fidx}/{band}.tif') for band in self.selected_bands]
+                bands_array = [np.expand_dims(band.read(1), axis=0) for band in bands_src]
+                bands = np.vstack(bands_array)
+                
 
                 if self.train:
+                    with rasterio.open(f'{self.root_dir}/{dataset_name}/{label_collection}/{label_collection}_{fidx}/raster_labels.tif') as src:
+                        label_data = src.read()[0]
 
-                    # get pixels with crop label per band
-                    label = int(label_data[field_data == fid].mean())
+                # get unique field ids in the field data
+                field_ids = list(np.unique(field_data))
+                field_ids.remove(0)
 
-                    assert (label_data[field_data == fid] == label).all(), "[Corrupted Data] field data has more than one label."
+                for fid in field_ids:
 
-                    # append label
-                    self.targets.append(label)
+                    # append field ids
+                    self.field_ids.append(fid)
 
-        # get class weights to handle imbalance
-        if self.train:
-            for key in self.class_meta.keys():
-                self.class_meta[key]["weight"] =  self.targets.count(key) / len(self.targets)
+                    # append spectral bands
+                    self.imgs.append(bands)
 
-        self.imgs: List[np.ndarray] = []
+                    # append field mask
+                    mask = np.where(field_data == fid, 1.0, 0.0)
+                    self.field_masks.append(mask)
 
-        if save_cache:
-            logging.info('Caching data for subsequent use...')
+                    if self.train:
 
-            with open(f'{self.root_dir}/imgs_{"_".join(self.selected_bands)}.{"train" if self.train else "test"}.cache.pkl', 'wb') as f:
-                pickle.dump(self.field_ids, f, protocol=pickle.HIGHEST_PROTOCOL)
+                        # get pixels with crop label per band
+                        label = int(label_data[field_data == fid].mean())
 
-            with open(f'{self.root_dir}/field_ids.{"train" if self.train else "test"}.cache.pkl', 'wb') as f:
-                pickle.dump(self.field_ids, f, protocol=pickle.HIGHEST_PROTOCOL)
+                        assert (label_data[field_data == fid] == label).all(), "[Corrupted Data] field data has more than one label."
 
-            with open(f'{self.root_dir}/field_masks.{"train" if self.train else "test"}.cache.pkl', 'wb') as f:
-                pickle.dump(self.field_masks, f, protocol=pickle.HIGHEST_PROTOCOL)
+                        # append label
+                        self.targets.append(label)
 
-            with open(f'{self.root_dir}/field_masks.{"train" if self.train else "test"}.cache.pkl', 'wb') as f:
-                pickle.dump(self.field_masks, f, protocol=pickle.HIGHEST_PROTOCOL)
-
-            with open(f'{self.root_dir}/class_meta.{"train" if self.train else "test"}.cache.pkl', 'wb') as f:
-                pickle.dump(self.class_meta, f, protocol=pickle.HIGHEST_PROTOCOL)
-
+            # get class weights to handle imbalance
             if self.train:
-                with open(f'{self.root_dir}/targets.{"train" if self.train else "test"}.cache.pkl', 'wb') as f:
-                    pickle.dump(self.targets, f, protocol=pickle.HIGHEST_PROTOCOL)
+                for key in self.class_meta.keys():
+                    self.class_meta[key]["weight"] =  self.targets.count(key) / len(self.targets)
 
+            self.imgs: List[np.ndarray] = []
+
+            if save_cache:
+                logging.info('Caching data for subsequent use...')
+
+                with open(f'{self.root_dir}/imgs_{"_".join(self.selected_bands)}.{"train" if self.train else "test"}.cache.pkl', 'wb') as f:
+                    pickle.dump(self.imgs, f, protocol=pickle.HIGHEST_PROTOCOL)
+
+                with open(f'{self.root_dir}/field_ids.{"train" if self.train else "test"}.cache.pkl', 'wb') as f:
+                    pickle.dump(self.field_ids, f, protocol=pickle.HIGHEST_PROTOCOL)
+
+                with open(f'{self.root_dir}/field_masks.{"train" if self.train else "test"}.cache.pkl', 'wb') as f:
+                    pickle.dump(self.field_masks, f, protocol=pickle.HIGHEST_PROTOCOL)
+
+                with open(f'{self.root_dir}/class_meta.{"train" if self.train else "test"}.cache.pkl', 'wb') as f:
+                    pickle.dump(self.class_meta, f, protocol=pickle.HIGHEST_PROTOCOL)
+
+                if self.train:
+                    with open(f'{self.root_dir}/targets.train.cache.pkl', 'wb') as f:
+                        pickle.dump(self.targets, f, protocol=pickle.HIGHEST_PROTOCOL)
+
+            else:
+                logging.info('Data loaded from cached files...')
             
 
     def __getitem__(self, index: str):
