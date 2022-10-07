@@ -44,7 +44,7 @@ class AgriFieldDataset(torch.utils.data.Dataset):
         if download:
             self.download_data(root_dir, dataset_name, bands)
 
-        self.save_cache_dir = get_dir(f"cache_{self.root_dir}/{'_'.join(self.selected_bands)}")
+        self.save_cache_dir = get_dir(f"{self.root_dir}'/cache_{'_'.join(self.selected_bands)}")
 
         try:
             logging.info('Loading data from cache...')
@@ -143,27 +143,36 @@ class AgriFieldDataset(torch.utils.data.Dataset):
                 logging.info('Caching data for subsequent use...')
 
                 with open(f'{self.save_cache_dir}/imgs.{"train" if self.train else "test"}.cache.pkl', 'wb') as f:
-                    pickle.dump(self.imgs, f)
+                    pickle.dump(np.vstack(self.imgs), f)
 
                 with open(f'{self.save_cache_dir}/field_ids.{"train" if self.train else "test"}.cache.pkl', 'wb') as f:
-                    pickle.dump(self.field_ids, f)
+                    pickle.dump(np.array(self.field_ids), f)
 
                 with open(f'{self.save_cache_dir}/field_masks.{"train" if self.train else "test"}.cache.pkl', 'wb') as f:
-                    pickle.dump(self.field_masks, f)
+                    pickle.dump(np.vstack(self.field_masks), f)
 
                 with open(f'{self.save_cache_dir}/class_meta.{"train" if self.train else "test"}.cache.pkl', 'wb') as f:
                     pickle.dump(self.class_meta, f)
 
                 if self.train:
                     with open(f'{self.save_cache_dir}/targets.train.cache.pkl', 'wb') as f:
-                        pickle.dump(self.targets, f)
+                        pickle.dump(np.array(self.targets), f)
 
         else:
             logging.info('Data loaded from cached files...')
-            
+
+    def __len__(self):
+        return len(self.targets)
 
     def __getitem__(self, index: str):
-        pass
+        field_id, image, field_mask, target = self.field_ids[index], self.imgs[index], self.field_masks[index], self.targets[index]
+        
+        if self.transform:
+            transform = self.transform(image=image, mask=field_mask)
+            image = transform["image"]
+            field_mask = transform["mask"]
+
+        return int(field_id), torch.FloatTensor(image), torch.FloatTensor(field_mask), int(self.class_meta[target]["loss_label"])
 
 
     def download_data(
@@ -216,8 +225,8 @@ class AgriFieldDataset(torch.utils.data.Dataset):
         }
 
         return { k: { 
-            "label": crops[k], 
-            "loss_index": v,
+            "name": crops[k], 
+            "loss_label": v,
         } for k, v in zip(crops.keys(), range(len(crops.keys())))}
 
 
@@ -226,3 +235,6 @@ class AgriFieldDataset(torch.utils.data.Dataset):
 
 if __name__ == '__main__':
     ds = AgriFieldDataset('data/source', save_cache=True, train=True)
+    loader = torch.utils.data.DataLoader(ds, batch_size=20, shuffle=False)
+    loader = iter(loader)
+    fids, imgs, masks, target = next(loader)
