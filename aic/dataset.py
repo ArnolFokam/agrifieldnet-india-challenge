@@ -1,3 +1,4 @@
+from collections import defaultdict
 import os
 import logging
 import getpass
@@ -29,7 +30,7 @@ class AgriFieldDataset(torch.utils.data.Dataset):
         train: bool = True,
         download: bool = False,
         save_cache: bool = False,
-        bands: Optional[List[str]] = ['B04', 'B05', 'B06', 'B07', 'B08', 'B8A', 'B09', 'B11', 'B12'],
+        bands: Optional[List[str]] = ['B01', 'B02', 'B03', 'B04','B05','B06','B07','B08','B8A', 'B09', 'B11', 'B12'],
         transform: Optional[Callable] = None):
 
         self.selected_bands = bands
@@ -44,26 +45,29 @@ class AgriFieldDataset(torch.utils.data.Dataset):
         if download:
             self.download_data(root_dir, dataset_name, bands)
 
-        # save_cache_dir = ""
+        self.save_cache_dir = get_dir(f"cache_{self.root_dir}/{'_'.join(self.selected_bands)}")
 
         try:
-            with open(f'{self.root_dir}/imgs_{"_".join(self.selected_bands)}.{"train" if self.train else "test"}.cache.pkl', 'rb') as f:
+            logging.info('Loading data from cache...')
+            with open(f'{self.save_cache_dir}/imgs.{"train" if self.train else "test"}.cache.pkl', 'rb') as f:
                 self.imgs = pickle.load(f)
 
-            with open(f'{self.root_dir}/field_ids.{"train" if self.train else "test"}.cache.pkl', 'rb') as f:
+            with open(f'{self.save_cache_dir}/field_ids.{"train" if self.train else "test"}.cache.pkl', 'rb') as f:
                 self.field_ids = pickle.load(f)
 
-            with open(f'{self.root_dir}/field_masks.{"train" if self.train else "test"}.cache.pkl', 'rb') as f:
+            with open(f'{self.save_cache_dir}/field_masks.{"train" if self.train else "test"}.cache.pkl', 'rb') as f:
                 self.field_masks = pickle.load(f)
 
-            with open(f'{self.root_dir}/class_meta.{"train" if self.train else "test"}.cache.pkl', 'rb') as f:
+            with open(f'{self.save_cache_dir}/class_meta.{"train" if self.train else "test"}.cache.pkl', 'rb') as f:
                 self.class_meta = pickle.load(f)
 
             if self.train:
-                with open(f'{self.root_dir}/targets.train.cache.pkl', 'rb') as f:
+                with open(f'{self.save_cache_dir}/targets.train.cache.pkl', 'rb') as f:
                     self.targets = pickle.load(f)
 
         except (IOError, OSError, pickle.PickleError, pickle.UnpicklingError):
+            logging.info('Error occured during cache data loading. Preprocessing data again...')
+
             folder_ids = get_folder_ids(self.root_dir, dataset_name, label_collection)
 
             self.imgs: List[np.ndarray] = []
@@ -117,33 +121,46 @@ class AgriFieldDataset(torch.utils.data.Dataset):
                         self.targets.append(label)
 
             # get class weights to handle imbalance
+            # TODO: find a more effiecient and clean way to do this
             if self.train:
-                for key in self.class_meta.keys():
-                    self.class_meta[key]["weight"] =  self.targets.count(key) / len(self.targets)
+                total_instances = len(self.targets)
 
-            self.imgs: List[np.ndarray] = []
+                # get the sum of all instances
+                for target in self.targets:
+                    if "weight" not in self.class_meta[target].keys():
+                        self.class_meta[target]["weight"] = 0
+                    else:
+                        self.class_meta[target]["weight"] +=  1 
+
+                # divided by the total instances
+                for key in self.class_meta.keys():
+                    self.class_meta[key]["weight"] /= total_instances
+
+                # make sure that every target class has a 
+                # weights, else there is an error somewhere
+                assert all(["weight" in self.class_meta[target].keys() for target in self.class_meta.keys()]), "[Error in code] Not all target have class weights"
 
             if save_cache:
                 logging.info('Caching data for subsequent use...')
 
-                with open(f'{self.root_dir}/imgs_{"_".join(self.selected_bands)}.{"train" if self.train else "test"}.cache.pkl', 'wb') as f:
-                    pickle.dump(self.imgs, f, protocol=pickle.HIGHEST_PROTOCOL)
+                with open(f'{self.save_cache_dir}/imgs.{"train" if self.train else "test"}.cache.pkl', 'wb') as f:
+                    pickle.dump(self.imgs, f)
 
-                with open(f'{self.root_dir}/field_ids.{"train" if self.train else "test"}.cache.pkl', 'wb') as f:
-                    pickle.dump(self.field_ids, f, protocol=pickle.HIGHEST_PROTOCOL)
+                with open(f'{self.save_cache_dir}/field_ids.{"train" if self.train else "test"}.cache.pkl', 'wb') as f:
+                    pickle.dump(self.field_ids, f)
 
-                with open(f'{self.root_dir}/field_masks.{"train" if self.train else "test"}.cache.pkl', 'wb') as f:
-                    pickle.dump(self.field_masks, f, protocol=pickle.HIGHEST_PROTOCOL)
+                with open(f'{self.save_cache_dir}/field_masks.{"train" if self.train else "test"}.cache.pkl', 'wb') as f:
+                    pickle.dump(self.field_masks, f)
 
-                with open(f'{self.root_dir}/class_meta.{"train" if self.train else "test"}.cache.pkl', 'wb') as f:
-                    pickle.dump(self.class_meta, f, protocol=pickle.HIGHEST_PROTOCOL)
+                with open(f'{self.save_cache_dir}/class_meta.{"train" if self.train else "test"}.cache.pkl', 'wb') as f:
+                    pickle.dump(self.class_meta, f)
 
                 if self.train:
-                    with open(f'{self.root_dir}/targets.train.cache.pkl', 'wb') as f:
-                        pickle.dump(self.targets, f, protocol=pickle.HIGHEST_PROTOCOL)
+                    with open(f'{self.save_cache_dir}/targets.train.cache.pkl', 'wb') as f:
+                        pickle.dump(self.targets, f)
 
-            else:
-                logging.info('Data loaded from cached files...')
+        else:
+            logging.info('Data loaded from cached files...')
             
 
     def __getitem__(self, index: str):
@@ -199,7 +216,10 @@ class AgriFieldDataset(torch.utils.data.Dataset):
             36: "Rice"
         }
 
-        return { k: { "label": crops[k], "loss_index": v } for k, v in zip(crops.keys(), range(len(crops.keys())))}
+        return { k: { 
+            "label": crops[k], 
+            "loss_index": v,
+        } for k, v in zip(crops.keys(), range(len(crops.keys())))}
 
 
         
