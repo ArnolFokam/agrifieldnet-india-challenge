@@ -10,7 +10,7 @@ import numpy as np
 from collections import defaultdict
 import pandas as pd
 
-from src.helpers import get_dir
+from aic.helpers import get_dir
 
 load_dotenv()
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s: %(message)s:', datefmt='%H:%M:%S')

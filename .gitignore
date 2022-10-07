@@ -122,10 +122,23 @@ dmypy.json
 .pyre/
 .vscode/settings.json
 
-#user-defined
+# user-defined ignore files
 data/source
 data/preprocessed/
 outputs/
 .vscode/launch.json
 exps/tracking
 catboost_info/
+*.egg-info
+/data/*
+/.idea
+/.vscode
+/slurms
+lightning_logs
+*.log
+/logs/*
+.hydra
+*_hidden*
+*_*.bash
+.vscode/settings.json
+wandb/
