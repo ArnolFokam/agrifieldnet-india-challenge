@@ -40,7 +40,7 @@ class BaselineTransfrom:
         }
 
 if __name__ == '__main__':
-    ds = AgriFieldDataset('data/source', transform=BaselineTransfrom(im_size=16), train=True)
+    ds = AgriFieldDataset('data/source', transform=BaselineTransfrom(crop_size=16), train=True)
     loader = torch.utils.data.DataLoader(ds, batch_size=20, shuffle=False)
     loader = iter(loader)
     fids, imgs, masks, targets = next(loader)
