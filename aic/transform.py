@@ -2,7 +2,8 @@ import numpy as np
 from typing import Dict, Union
 from PIL.Image import Image
 import torch
-from aic.augmentation import RandomFieldAreaCrop
+import cv2
+from aic.augmentation import RandomFieldAreaCrop, ReduceSkewness
 
 import albumentations as A
 import albumentations.pytorch.transforms as TorchT
@@ -16,12 +17,15 @@ class BaselineTransfrom:
         
         # transform that change the value of a voxel in the spectral bands
         self.voxel_value_transform = A.Compose([
-            
+            ReduceSkewness(),
+            A.GaussNoise()
         ])
 
         # transform that changes the geometric shape of the image (rotation, translation, etc)
         self.geometric_transform = A.Compose([
-            RandomFieldAreaCrop(crop_size=self.crop_size)
+            RandomFieldAreaCrop(crop_size=self.crop_size),
+            A.HorizontalFlip(),
+            A.Rotate(limit=180)
         ])
 
         # transform after all the important ones, usually to convert to tensor
@@ -30,7 +34,11 @@ class BaselineTransfrom:
         ])
 
     def __call__(self, image: Union[np.ndarray, Image], mask: Union[np.ndarray, Image]) -> Dict[str,  Union[np.ndarray, Image]]:
-        # image = self.voxel_value_transform(image=image)["image"]
+        image = self.voxel_value_transform(image=image)["image"]
+        
+        # dilate mask to slight increase the region of interest
+        mask = cv2.dilate(mask.astype(np.uint8), kernel=np.ones((5,5),np.uint8), iterations = 1)
+        
         transformed = self.geometric_transform(image=image, mask=mask)
         transformed = self.final_transform(image=transformed["image"], mask=transformed["mask"])
 
