@@ -4,7 +4,9 @@ import numpy as np
 import cv2
 import torch
 
-from aic.dataset import AgriFieldDataset
+class ReduceSkewness:
+    def __call__(self, image: Union[np.ndarray, Image]):
+        return np.sqrt(image)
 
 class RandomFieldAreaCrop:
     def __init__(self, crop_size: int) -> None:
