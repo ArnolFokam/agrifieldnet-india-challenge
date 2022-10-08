@@ -2,6 +2,9 @@ from PIL.Image import Image
 from typing import Dict, Union
 import numpy as np
 import cv2
+import torch
+
+from aic.dataset import AgriFieldDataset
 
 class RandomFieldAreaCrop:
     def __init__(self, crop_size: int) -> None:
