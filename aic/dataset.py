@@ -176,7 +176,7 @@ class AgriFieldDataset(torch.utils.data.Dataset):
         # divided by the total instances
         weights = {k: v / total_instances for k, v in weights.items()}
             
-        return weights.keys(), weights.values()
+        return weights
 
 
     def download_data(
