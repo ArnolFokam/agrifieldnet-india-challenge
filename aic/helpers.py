@@ -1,6 +1,13 @@
 import os
 import json
 
+import torch
+import numpy as np
+
+def seed_everything(seed):
+    torch.manual_seed(seed)
+    np.random.seed(seed)
+
 def get_dir(*paths) -> str:
     """Creates a dir from a list of directories (like os.path.join), runs os.makedirs and returns the name
     Returns:

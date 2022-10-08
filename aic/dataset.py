@@ -1,3 +1,4 @@
+from collections import defaultdict
 import os
 import logging
 import getpass
@@ -29,8 +30,8 @@ class AgriFieldDataset(torch.utils.data.Dataset):
         train: bool = True,
         download: bool = False,
         save_cache: bool = False,
-        bands: Optional[List[str]] = ['B01', 'B02', 'B03', 'B04','B05','B06','B07','B08','B8A', 'B09', 'B11', 'B12'],
-        transform: Optional[Callable] = None):
+        transform: Optional[Callable] = None,
+        bands: Optional[List[str]] = ['B01', 'B02', 'B03', 'B04','B05','B06','B07','B08','B8A', 'B09', 'B11', 'B12']):
 
         self.selected_bands = bands
         self.train = train
@@ -121,26 +122,6 @@ class AgriFieldDataset(torch.utils.data.Dataset):
 
                         # append label
                         self.targets.append(label)
-
-            # get class weights to handle imbalance
-            # TODO: find a more effiecient and clean way to do this
-            if self.train:
-                total_instances = len(self.targets)
-
-                # get the sum of all instances
-                for target in self.targets:
-                    if "weight" not in self.class_meta[target].keys():
-                        self.class_meta[target]["weight"] = 0
-                    else:
-                        self.class_meta[target]["weight"] +=  1 
-
-                # divided by the total instances
-                for key in self.class_meta.keys():
-                    self.class_meta[key]["weight"] /= total_instances
-
-                # make sure that every target class has a 
-                # weights, else there is an error somewhere
-                assert all(["weight" in self.class_meta[target].keys() for target in self.class_meta.keys()]), "[Error in code] Not all target have class weights"
             
                 
             self.imgs = np.array(self.imgs)
@@ -182,6 +163,20 @@ class AgriFieldDataset(torch.utils.data.Dataset):
             field_mask = transformed["mask"]
 
         return int(field_id), image.float(), field_mask.float(), int(self.class_meta[target]["loss_label"])
+    
+    @staticmethod
+    def get_class_weights(targets):
+        weights = defaultdict(lambda: 0)
+        total_instances = len(targets)
+
+        # get the sum of all instances
+        for target in targets:
+            weights[target] += 1
+
+        # divided by the total instances
+        weights = {k: v / total_instances for k, v in weights.items()}
+            
+        return weights.keys(), weights.values()
 
 
     def download_data(
