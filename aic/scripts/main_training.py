@@ -82,7 +82,8 @@ if __name__ == "__main__":
         model = model.to(device)
         
         # loss function
-        criterion = nn.CrossEntropyLoss(weight=torch.FloatTensor(list(train_classes_weights_inverted.values())))
+        # criterion = nn.CrossEntropyLoss(weight=torch.FloatTensor(list(train_classes_weights_inverted.values()))) hurts performance
+        criterion = nn.CrossEntropyLoss()    
         criterion.to(device)
         
         #initialize optimizer and scheduler each cycle
@@ -90,7 +91,7 @@ if __name__ == "__main__":
         scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(optimizer, 10*len(dataloaders['train']))
         
         for epoch in range(args.epochs):
-            print('\nKFold-{} Epoch {}/{}'.format(kfold_idx, epoch, args.epochs - 1))
+            print('\nKFold-{} Epoch {}/{}'.format(kfold_idx + 1, epoch + 1, args.epochs))
             print('-' * 10)
 
             # Each epoch has a training and validation phase

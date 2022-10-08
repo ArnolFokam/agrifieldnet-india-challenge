@@ -23,8 +23,8 @@ class BaselineTransfrom:
         # transform that changes the geometric shape of the image (rotation, translation, etc)
         self.geometric_transform = A.Compose([
             RandomFieldAreaCrop(crop_size=self.crop_size),
+            # A.Rotate(limit=180),
             A.HorizontalFlip(),
-            # A.Rotate(limit=180)
         ])
 
         # transform after all the important ones, usually to convert to tensor
@@ -33,10 +33,10 @@ class BaselineTransfrom:
         ])
 
     def __call__(self, image: Union[np.ndarray, Image], mask: Union[np.ndarray, Image]) -> Dict[str,  Union[np.ndarray, Image]]:
-        image = self.voxel_value_transform(image=image)["image"]
+        # image = self.voxel_value_transform(image=image)["image"]
         
         # dilate mask to slight increase the region of interest
-        mask = scipy.ndimage.binary_dilation(mask.astype(np.uint8), structure=np.ones((5,5),np.uint8), iterations = 1)
+        mask = scipy.ndimage.binary_dilation(mask.astype(np.uint8), structure=np.ones((5, 5),np.uint8), iterations = 2)
         
         transformed = self.geometric_transform(image=image, mask=mask)
         transformed = self.final_transform(image=transformed["image"], mask=transformed["mask"])

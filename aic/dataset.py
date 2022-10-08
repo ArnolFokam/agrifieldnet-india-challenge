@@ -130,10 +130,10 @@ class AgriFieldDataset(torch.utils.data.Dataset):
             self.targets = np.array(self.targets)
             
             # normalize data accross dataset
-            for c in range(self.imgs.shape[-1]):
-                mean = self.imgs[:, :, :, c].mean()
-                std = self.imgs[:, :, :, c].std()
-                self.imgs[:, :, :, c] = (self.imgs[:, :, :, c] - mean) / std
+            #for c in range(self.imgs.shape[-1]):
+            #    mean = self.imgs[:, :, :, c].mean()
+            #    std = self.imgs[:, :, :, c].std()
+            #    self.imgs[:, :, :, c] = (self.imgs[:, :, :, c] - mean) / std
             
             if save_cache:
                 logging.info('Caching data for subsequent use...')
