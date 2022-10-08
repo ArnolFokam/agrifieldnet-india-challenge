@@ -6,7 +6,9 @@ import torch
 
 class ReduceSkewness:
     def __call__(self, image: Union[np.ndarray, Image]):
-        return np.sqrt(image)
+        return {
+            "image": np.sqrt(image)
+        }
 
 class RandomFieldAreaCrop:
     def __init__(self, crop_size: int) -> None:

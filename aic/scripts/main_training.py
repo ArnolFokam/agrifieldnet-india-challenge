@@ -14,6 +14,7 @@ from torch.utils.data.sampler import WeightedRandomSampler
 from sklearn.model_selection import StratifiedShuffleSplit
 
 from aic.dataset import AgriFieldDataset
+from aic.helpers import seed_everything
 from aic.model import CropClassifier
 from aic.transform import BaselineTransfrom
 
@@ -33,10 +34,10 @@ parser.add_argument('-d','--data_dir', help='path to data folder', default='data
 parser.add_argument('-dd','--download_data', help='should we download the data?', default=False, type=bool)
 parser.add_argument('-b','--batch_size', help='batch size', default=64, type=int)
 parser.add_argument('-w','--num_workers', help='number of workers for dataloader', default=8, type=int)
-parser.add_argument('-cs','--crop_size', help='size of the crop image after transform', default=32, type=int)
+parser.add_argument('-cs','--crop_size', help='size of the crop image after transform', default=16, type=int)
 
 # model architeture
-parser.add_argument('-ft', '--filters', help='list of filters for the CNN used', default=[32], type=list)
+parser.add_argument('-ft', '--filters', help='list of filters for the CNN used', default=[32], nargs='+', type=int)
 
 # model optimization & training
 parser.add_argument('-ep','--epochs', help='number of training epochs', default=10, type=int)
@@ -44,15 +45,15 @@ parser.add_argument('-lr','--learning_rate', help='learning rate', default=1e-2,
 
 args = parser.parse_args()
 
-dataset = AgriFieldDataset(args.data_dir,  
+if __name__ == "__main__":
+    seed_everything(args.seed)
+    device = torch.device('cuda:0' if torch.cuda.is_available() else 'cpu')
+    
+    dataset = AgriFieldDataset(args.data_dir,  
                            download=args.download_data,
                            save_cache=True, 
                            train=True,
                            transform=BaselineTransfrom(crop_size=args.crop_size))
-
-if __name__ == "__main__":
-    device = torch.device('cuda:0' if torch.cuda.is_available() else 'cpu')
-    
     kfold = StratifiedShuffleSplit(n_splits=args.splits, test_size=args.test_size, random_state=args.seed)
     
     for kfold_idx, (train_indices, val_indices) in enumerate(kfold.split(dataset.field_ids, dataset.targets)):

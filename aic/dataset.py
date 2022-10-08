@@ -165,10 +165,12 @@ class AgriFieldDataset(torch.utils.data.Dataset):
                 
         if self.transform:
             transformed = self.transform(image=image, mask=field_mask)
-            image = transformed["image"]
-            field_mask = transformed["mask"]
+            image = transformed["image"].float()
+            field_mask = transformed["mask"].float()
+        else:
+            image, field_mask = torch.FloatTensor(image), torch.FloatTensor(field_mask)
 
-        return int(field_id), torch.FloatTensor(image), torch.FloatTensor(field_mask), int(self.class_meta[target]["loss_label"])
+        return int(field_id), image, field_mask, int(self.class_meta[target]["loss_label"])
     
     @staticmethod
     def get_class_weights(targets):

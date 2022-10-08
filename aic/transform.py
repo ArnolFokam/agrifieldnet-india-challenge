@@ -2,7 +2,7 @@ import numpy as np
 from typing import Dict, Union
 from PIL.Image import Image
 import torch
-import cv2
+import scipy
 from aic.augmentation import RandomFieldAreaCrop, ReduceSkewness
 
 import albumentations as A
@@ -17,15 +17,14 @@ class BaselineTransfrom:
         
         # transform that change the value of a voxel in the spectral bands
         self.voxel_value_transform = A.Compose([
-            ReduceSkewness(),
-            A.GaussNoise()
+            ReduceSkewness()
         ])
 
         # transform that changes the geometric shape of the image (rotation, translation, etc)
         self.geometric_transform = A.Compose([
             RandomFieldAreaCrop(crop_size=self.crop_size),
             A.HorizontalFlip(),
-            A.Rotate(limit=180)
+            # A.Rotate(limit=180)
         ])
 
         # transform after all the important ones, usually to convert to tensor
@@ -37,7 +36,7 @@ class BaselineTransfrom:
         image = self.voxel_value_transform(image=image)["image"]
         
         # dilate mask to slight increase the region of interest
-        mask = cv2.dilate(mask.astype(np.uint8), kernel=np.ones((5,5),np.uint8), iterations = 1)
+        mask = scipy.ndimage.binary_dilation(mask.astype(np.uint8), structure=np.ones((5,5),np.uint8), iterations = 1)
         
         transformed = self.geometric_transform(image=image, mask=mask)
         transformed = self.final_transform(image=transformed["image"], mask=transformed["mask"])
