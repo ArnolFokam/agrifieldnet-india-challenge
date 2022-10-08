@@ -13,7 +13,7 @@ class CropClassifier(nn.Module):
         
         assert len(filters) > 0, "[Input error] the model must have at least one filter layer"
         
-        self.conv_layers = [self.conv_layer(n_bands, filters[0])]
+        self.conv_layers = nn.ModuleList([self.conv_layer(n_bands, filters[0])])
         
         for i in range(len(filters) - 1):
             self.conv_layers.append(self.conv_layer(filters[i], filters[i + 1]))
