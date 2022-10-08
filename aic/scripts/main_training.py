@@ -3,6 +3,7 @@ Credits: https://github.com/radiantearth/crop-type-detection-ICLR-2020/blob/mast
 """
 
 import argparse
+from sklearn.metrics import precision_recall_fscore_support
 
 import torch
 import numpy as np
@@ -78,7 +79,7 @@ if __name__ == "__main__":
         model = model.to(device)
         
         # loss function
-        criterion = nn.CrossEntropyLoss(weight=torch.FloatTensor(train_classes_weights_inverted.values()))
+        criterion = nn.CrossEntropyLoss(weight=torch.FloatTensor(list(train_classes_weights_inverted.values())))
         criterion.to(device)
         
         #initialize optimizer and scheduler each cycle
@@ -86,7 +87,7 @@ if __name__ == "__main__":
         scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(optimizer, 10*len(dataloaders['train']))
         
         for epoch in range(args.epochs):
-            print('KFold-{} Epoch {}/{}'.format(kfold_idx, epoch, args.epochs - 1))
+            print('\nKFold-{} Epoch {}/{}'.format(kfold_idx, epoch, args.epochs - 1))
             print('-' * 10)
 
             # Each epoch has a training and validation phase
@@ -97,7 +98,8 @@ if __name__ == "__main__":
                     model.eval()   # Set model to evaluate mode
 
                 running_loss = 0.0
-                running_corrects = 0
+                running_preds = []
+                running_targets = []
                 
                 pbar = tqdm(dataloaders[phase])
                 pbar.set_description(f"Phase {phase}")
@@ -128,12 +130,15 @@ if __name__ == "__main__":
                     
                     # statistics
                     running_loss += loss.item()
-                    running_corrects += torch.sum(preds == targets.data)
+                    running_targets.extend(targets.cpu().detach().numpy())
+                    running_preds.extend(preds.cpu().detach().numpy())
 
                 epoch_loss = running_loss / len(dataloaders[phase])
-                epoch_acc = running_corrects.double() /  len(dataloaders[phase])
                 
-                print('{} Loss: {:.4f} Acc: {:.4f}'.format(
-                    phase, epoch_loss, epoch_acc))
+                print('{}:::: '
+                      'Loss: {:.4f} '
+                      'Prec: {:.4f} '
+                      'Rec: {:.4f} '
+                      'F1: {:.4f}'.format(phase, epoch_loss, *precision_recall_fscore_support(running_targets, running_preds, average='micro')[:3]))
 
         
