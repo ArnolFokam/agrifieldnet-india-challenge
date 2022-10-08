@@ -129,6 +129,12 @@ class AgriFieldDataset(torch.utils.data.Dataset):
             self.field_masks = np.array(self.field_masks)
             self.targets = np.array(self.targets)
             
+            # normalize data accross dataset
+            for c in range(self.imgs.shape[-1]):
+                mean = self.imgs[:, :, :, c].mean()
+                std = self.imgs[:, :, :, c].std()
+                self.imgs[:, :, :, c] = (self.imgs[:, :, :, c] - mean) / std
+            
             if save_cache:
                 logging.info('Caching data for subsequent use...')
 
@@ -156,13 +162,13 @@ class AgriFieldDataset(torch.utils.data.Dataset):
 
     def __getitem__(self, index: str):
         field_id, image, field_mask, target = self.field_ids[index], self.imgs[index], self.field_masks[index], self.targets[index]
-        
+                
         if self.transform:
             transformed = self.transform(image=image, mask=field_mask)
             image = transformed["image"]
             field_mask = transformed["mask"]
 
-        return int(field_id), image.float(), field_mask.float(), int(self.class_meta[target]["loss_label"])
+        return int(field_id), torch.FloatTensor(image), torch.FloatTensor(field_mask), int(self.class_meta[target]["loss_label"])
     
     @staticmethod
     def get_class_weights(targets):
