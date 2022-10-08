@@ -11,8 +11,8 @@ from aic.dataset import AgriFieldDataset
 
 
 class BaselineTransfrom:
-    def __init__(self, im_size: int = 32) -> None:
-        self.im_size = im_size
+    def __init__(self, crop_size: int = 32) -> None:
+        self.crop_size = crop_size
         
         # transform that change the value of a voxel in the spectral bands
         self.voxel_value_transform = A.Compose([
@@ -21,7 +21,7 @@ class BaselineTransfrom:
 
         # transform that changes the geometric shape of the image (rotation, translation, etc)
         self.geometric_transform = A.Compose([
-            RandomFieldAreaCrop(crop_size=self.im_size)
+            RandomFieldAreaCrop(crop_size=self.crop_size)
         ])
 
         # transform after all the important ones, usually to convert to tensor
