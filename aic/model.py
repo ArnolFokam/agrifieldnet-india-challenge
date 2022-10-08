@@ -8,7 +8,7 @@ from aic.transform import BaselineTransfrom
 from aic.dataset import AgriFieldDataset
 
 class CropClassifier(nn.Module):
-    def __init__(self, n_classes: int, n_bands: int, filters: List[int] = []) -> None:
+    def __init__(self, n_classes: int, n_bands: int, filters: List[int] = [32]) -> None:
         super().__init__()
         
         assert len(filters) > 0, "[Input error] the model must have at least one filter layer"
@@ -18,13 +18,26 @@ class CropClassifier(nn.Module):
         for i in range(len(filters) - 1):
             self.conv_layers.append(self.conv_layer(filters[i], filters[i + 1]))
         
-        self.maxpool = nn.MaxPool2d()
         self.fc = nn.Linear(filters[-1], n_classes)
+        
+        self.apply(self._init_weights)
+    
+    def _init_weights(self, module):
+        if isinstance(module, nn.Linear):
+            module.weight.data.normal_(mean=0.0, std=0.05)
+            if module.bias is not None:
+                module.bias.data.zero_()
+        
+        if isinstance(module, nn.Conv2d):
+            torch.nn.init.xavier_uniform(module.weight)
+            if module.bias is not None:
+                module.bias.data.zero_()
+
         
         
     def conv_layer(self, in_channels, out_channels):
         
-        return nn.Sequential([
+        return nn.Sequential(
             nn.Conv2d(in_channels=in_channels, 
                       out_channels=out_channels,
                       kernel_size=3, 
@@ -33,7 +46,7 @@ class CropClassifier(nn.Module):
                       bias=False),
             nn.GroupNorm(2, out_channels),
             nn.ReLU()
-        ])
+        )
         
     def forward(self, image: torch.Tensor, mask: torch.Tensor):
         out = self.conv_layers[0](image) # input convolution
@@ -43,7 +56,11 @@ class CropClassifier(nn.Module):
             out = self.conv_layers[i](out)
         
         # mask the unwanted pixel features
-        out = (out*mask) / mask.sum(-2, -1)
+        mask = mask.view(mask.size(0), 1, mask.size(-2), mask.size(-1)) # expand mask dim to match conv outpu
+        out = (out*mask).sum((-2, -1)) / mask.sum((-2, -1))
+        
+        # logits
+        out = self.fc(out)
         
         return out
         
@@ -56,6 +73,7 @@ if __name__ == '__main__':
     
     # modelling
     model = CropClassifier(n_classes=len(ds.class_meta.keys()),
-                           n_bands=len(ds.selected_bands))
+                           n_bands=len(ds.selected_bands),
+                           filters=[32, 64, 128])
     
     out = model(imgs, masks)   
