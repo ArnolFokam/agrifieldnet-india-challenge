@@ -30,6 +30,7 @@ parser.add_argument('-ks','--splits', help='number of splits for cross validatio
 
 # data
 parser.add_argument('-d','--data_dir', help='path to data folder', default='data/source', type=str)
+parser.add_argument('-dd','--download_data', help='should we download the data?', default=False, type=bool)
 parser.add_argument('-b','--batch_size', help='batch size', default=64, type=int)
 parser.add_argument('-w','--num_workers', help='number of workers for dataloader', default=8, type=int)
 parser.add_argument('-cs','--crop_size', help='size of the crop image after transform', default=32, type=int)
@@ -44,6 +45,7 @@ parser.add_argument('-lr','--learning_rate', help='learning rate', default=1e-2,
 args = parser.parse_args()
 
 dataset = AgriFieldDataset(args.data_dir,  
+                           download=args.download_data,
                            save_cache=True, 
                            train=True,
                            transform=BaselineTransfrom(crop_size=args.crop_size))
