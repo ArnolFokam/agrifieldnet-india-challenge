@@ -86,7 +86,7 @@ class AgriFieldDataset(torch.utils.data.Dataset):
                 # get bands for folder id
                 bands_src = [rasterio.open(f'{self.root_dir}/{dataset_name}/{source_collection}/{source_collection}_{fidx}/{band}.tif') for band in self.selected_bands]
                 bands_array = [np.expand_dims(band.read(1), axis=0) for band in bands_src]
-                bands = np.vstack(bands_array)
+                bands = np.vstack(bands_array).transpose(1, 2, 0) # convert to H x W x C
                 
 
                 if self.train:
@@ -106,7 +106,10 @@ class AgriFieldDataset(torch.utils.data.Dataset):
                     self.imgs.append(bands)
 
                     # append field mask
-                    mask = np.where(field_data == fid, 1.0, 0.0)
+                    mask = np.where(field_data == fid, 1, 0)
+                    
+                    assert np.array_equal(np.unique(mask) , np.array([0, 1])), "[Incorrect code] mask must be binary"
+                    
                     self.field_masks.append(mask)
 
                     if self.train:
@@ -138,25 +141,31 @@ class AgriFieldDataset(torch.utils.data.Dataset):
                 # make sure that every target class has a 
                 # weights, else there is an error somewhere
                 assert all(["weight" in self.class_meta[target].keys() for target in self.class_meta.keys()]), "[Error in code] Not all target have class weights"
-
+            
+                
+            self.imgs = np.array(self.imgs)
+            self.field_ids = np.array(self.field_ids)
+            self.field_masks = np.array(self.field_masks)
+            self.targets = np.array(self.targets)
+            
             if save_cache:
                 logging.info('Caching data for subsequent use...')
 
                 with open(f'{self.save_cache_dir}/imgs.{"train" if self.train else "test"}.cache.pkl', 'wb') as f:
-                    pickle.dump(np.vstack(self.imgs), f)
+                    pickle.dump(self.imgs, f)
 
                 with open(f'{self.save_cache_dir}/field_ids.{"train" if self.train else "test"}.cache.pkl', 'wb') as f:
-                    pickle.dump(np.array(self.field_ids), f)
+                    pickle.dump(self.field_ids, f)
 
                 with open(f'{self.save_cache_dir}/field_masks.{"train" if self.train else "test"}.cache.pkl', 'wb') as f:
-                    pickle.dump(np.vstack(self.field_masks), f)
+                    pickle.dump(self.field_masks, f)
 
                 with open(f'{self.save_cache_dir}/class_meta.{"train" if self.train else "test"}.cache.pkl', 'wb') as f:
                     pickle.dump(self.class_meta, f)
 
                 if self.train:
                     with open(f'{self.save_cache_dir}/targets.train.cache.pkl', 'wb') as f:
-                        pickle.dump(np.array(self.targets), f)
+                        pickle.dump(self.targets, f)
 
         else:
             logging.info('Data loaded from cached files...')
@@ -172,7 +181,7 @@ class AgriFieldDataset(torch.utils.data.Dataset):
             image = transformed["image"]
             field_mask = transformed["mask"]
 
-        return int(field_id), torch.FloatTensor(image), torch.FloatTensor(field_mask), int(self.class_meta[target]["loss_label"])
+        return int(field_id), image.float(), field_mask.float(), int(self.class_meta[target]["loss_label"])
 
 
     def download_data(
@@ -228,9 +237,6 @@ class AgriFieldDataset(torch.utils.data.Dataset):
             "name": crops[k], 
             "loss_label": v,
         } for k, v in zip(crops.keys(), range(len(crops.keys())))}
-
-
-        
 
 
 if __name__ == '__main__':
