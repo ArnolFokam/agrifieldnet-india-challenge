@@ -29,7 +29,7 @@ class CropClassifier(nn.Module):
                 module.bias.data.zero_()
         
         if isinstance(module, nn.Conv2d):
-            torch.nn.init.xavier_uniform(module.weight)
+            nn.init.xavier_uniform_(module.weight)
             if module.bias is not None:
                 module.bias.data.zero_()
 
@@ -66,7 +66,7 @@ class CropClassifier(nn.Module):
         
 
 if __name__ == '__main__':
-    ds = AgriFieldDataset('data/source', transform=BaselineTransfrom(im_size=16), train=True)
+    ds = AgriFieldDataset('data/source', transform=BaselineTransfrom(crop_size=16), train=True)
     loader = torch.utils.data.DataLoader(ds, batch_size=20, shuffle=False)
     loader = iter(loader)
     fids, imgs, masks, targets = next(loader) 
