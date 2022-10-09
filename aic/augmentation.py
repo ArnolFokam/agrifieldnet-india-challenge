@@ -2,13 +2,32 @@ from PIL.Image import Image
 from typing import Dict, Union
 import numpy as np
 import cv2
-import torch
+from scipy import ndimage
 
 class ReduceSkewness:
     def __call__(self, image: Union[np.ndarray, Image]):
         return {
-            "image": np.sqrt(image)
+            "image": np.sqrt(image).astype(np.uint8)
         }
+
+class RotateBands:
+    def __init__(self, limit=90, p=0.5) -> None:
+        self.limit = limit
+        self.p = p
+
+    
+    def __call__(self, image: Union[np.ndarray, Image], mask: Union[np.ndarray, Image]) ->  Dict[str,  Union[np.ndarray, Image]]:
+        if np.random.random() > self.p:
+            angle = np.random.uniform(-abs(self.limit), abs(self.limit))
+            image = ndimage.rotate(image, angle, reshape=False).astype(np.uint8)
+            mask = ndimage.rotate(mask, angle, reshape=False).astype(np.uint8)
+        
+        return {
+            "image": image,
+            "mask": mask
+        }
+    
+    
 
 class RandomFieldAreaCrop:
     def __init__(self, crop_size: int) -> None:
@@ -54,6 +73,6 @@ class RandomFieldAreaCrop:
         y2 = cy + space_bottom - min(0, top) # add the top offset to the bottom
         
         return {
-            "image": image[y1:y2, x1:x2, :],
-            "mask": mask[y1:y2, x1:x2],
+            "image": image[y1:y2, x1:x2, :].astype(np.uint8),
+            "mask": mask[y1:y2, x1:x2].astype(np.uint8),
         }

@@ -1,9 +1,9 @@
 import numpy as np
-from typing import Dict, Union
+from typing import Dict, List, Union
 from PIL.Image import Image
 import torch
 import scipy
-from aic.augmentation import RandomFieldAreaCrop, ReduceSkewness
+from aic.augmentation import RandomFieldAreaCrop, ReduceSkewness, RotateBands
 
 import albumentations as A
 import albumentations.pytorch.transforms as TorchT
@@ -12,12 +12,15 @@ from aic.dataset import AgriFieldDataset
 
 
 class BaselineTransfrom:
-    def __init__(self, crop_size: int = 32) -> None:
+    def __init__(self, bands: List[str], crop_size: int = 32) -> None:
         self.crop_size = crop_size
+        self.bands = bands
         
         # transform that change the value of a voxel in the spectral bands
         self.voxel_value_transform = A.Compose([
-            ReduceSkewness()
+            ReduceSkewness(),
+            A.Normalize(mean=[AgriFieldDataset.mean[band] for band in self.bands],
+                        std=[AgriFieldDataset.std[band] for band in self.bands])
         ])
 
         # transform that changes the geometric shape of the image (rotation, translation, etc)
@@ -25,6 +28,7 @@ class BaselineTransfrom:
             RandomFieldAreaCrop(crop_size=self.crop_size),
             # A.Rotate(limit=180),
             A.HorizontalFlip(),
+            RotateBands(limit=180)
         ])
 
         # transform after all the important ones, usually to convert to tensor
