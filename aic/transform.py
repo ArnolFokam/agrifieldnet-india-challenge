@@ -26,7 +26,6 @@ class BaselineTransfrom:
         # transform that changes the geometric shape of the image (rotation, translation, etc)
         self.geometric_transform = A.Compose([
             RandomFieldAreaCrop(crop_size=self.crop_size),
-            # A.Rotate(limit=180),
             A.HorizontalFlip(),
             RotateBands(limit=180)
         ])

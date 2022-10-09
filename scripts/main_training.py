@@ -6,16 +6,17 @@ import argparse
 from sklearn.metrics import precision_recall_fscore_support
 
 import torch
-import numpy as np
 import torch.nn as nn
 from tqdm import tqdm
+import torch.nn.functional as F
 from torch.utils.data import Subset, DataLoader
 from torch.utils.data.sampler import WeightedRandomSampler
 from sklearn.model_selection import StratifiedShuffleSplit
 
-from aic.dataset import AgriFieldDataset
-from aic.helpers import seed_everything
+
 from aic.model import CropClassifier
+from aic.helpers import seed_everything
+from aic.dataset import AgriFieldDataset
 from aic.transform import BaselineTransfrom
 
 
@@ -38,6 +39,7 @@ parser.add_argument('-cs','--crop_size', help='size of the crop image after tran
 
 # model architeture
 parser.add_argument('-ft', '--filters', help='list of filters for the CNN used', default=[32], nargs='+', type=int)
+parser.add_argument('-k', '--kernel_size', help='kernel size for the convolutions', default=5, type=int)
 
 # model optimization & training
 parser.add_argument('-ep','--epochs', help='number of training epochs', default=10, type=int)
@@ -80,7 +82,8 @@ if __name__ == "__main__":
         # model
         model = CropClassifier(n_classes=len(train_classes_weights.keys()), 
                                n_bands=len(train_ds.dataset.selected_bands), 
-                               filters=args.filters)
+                               filters=args.filters,
+                               kernel_size=args.kernel_size)
         model = model.to(device)
         
         # loss function
@@ -125,6 +128,7 @@ if __name__ == "__main__":
                     # track history if only in train
                     with torch.set_grad_enabled(phase == 'train'):
                         outputs = model(imgs, masks)
+                        outputs = F.softmax(outputs, 1)
                         preds = torch.argmax(outputs, 1)
                         loss = criterion(outputs, targets)
                         

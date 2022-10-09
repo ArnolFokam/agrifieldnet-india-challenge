@@ -8,15 +8,15 @@ from aic.transform import BaselineTransfrom
 from aic.dataset import AgriFieldDataset
 
 class CropClassifier(nn.Module):
-    def __init__(self, n_classes: int, n_bands: int, filters: List[int] = [32]) -> None:
+    def __init__(self, n_classes: int, n_bands: int, kernel_size: int = 3, filters: List[int] = [32]) -> None:
         super().__init__()
         
         assert len(filters) > 0, "[Input error] the model must have at least one filter layer"
         
-        self.conv_layers = nn.ModuleList([self.conv_layer(n_bands, filters[0])])
+        self.conv_layers = nn.ModuleList([self.conv_layer(n_bands, filters[0], kernel_size)])
         
         for i in range(len(filters) - 1):
-            self.conv_layers.append(self.conv_layer(filters[i], filters[i + 1]))
+            self.conv_layers.append(self.conv_layer(filters[i], filters[i + 1], kernel_size))
         
         self.fc = nn.Linear(filters[-1], n_classes)
         
@@ -35,16 +35,18 @@ class CropClassifier(nn.Module):
 
         
         
-    def conv_layer(self, in_channels, out_channels):
+    def conv_layer(self, in_channels, out_channels, kernel_size):
+        
+        assert kernel_size % 2 == 1, "kernel size must be an odd number"
         
         return nn.Sequential(
             nn.Conv2d(in_channels=in_channels, 
                       out_channels=out_channels,
-                      kernel_size=3, 
+                      kernel_size=kernel_size, 
+                      padding=kernel_size // 2, 
                       stride=1, 
-                      padding=1, 
                       bias=False),
-            nn.GroupNorm(2, out_channels),
+            nn.BatchNorm2d(out_channels),
             nn.ReLU()
         )
         
@@ -66,7 +68,11 @@ class CropClassifier(nn.Module):
         
 
 if __name__ == '__main__':
-    ds = AgriFieldDataset('data/source', transform=BaselineTransfrom(crop_size=16), train=True)
+    bands = ['B01', 'B02', 'B03', 'B04','B05','B06','B07','B08','B8A', 'B09', 'B11', 'B12']
+    ds = AgriFieldDataset('data/source',
+                          bands=bands,
+                          transform=BaselineTransfrom(crop_size=16, bands=bands), 
+                          train=True)
     loader = torch.utils.data.DataLoader(ds, batch_size=20, shuffle=False)
     loader = iter(loader)
     fids, imgs, masks, targets = next(loader) 
@@ -74,6 +80,7 @@ if __name__ == '__main__':
     # modelling
     model = CropClassifier(n_classes=len(ds.class_meta.keys()),
                            n_bands=len(ds.selected_bands),
-                           filters=[32, 64, 128])
+                           filters=[32, 64, 128],
+                           kernel_size=5)
     
     out = model(imgs, masks)   
