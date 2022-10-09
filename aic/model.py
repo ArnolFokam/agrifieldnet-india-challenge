@@ -46,7 +46,8 @@ class CropClassifier(nn.Module):
                       padding=kernel_size // 2, 
                       stride=1, 
                       bias=False),
-            nn.BatchNorm2d(out_channels),
+            nn.GroupNorm(2, out_channels),
+            # nn.BatchNorm2d(out_channels),
             nn.ReLU()
         )
         
