@@ -52,12 +52,13 @@ if __name__ == "__main__":
     device = torch.device('cuda:0' if torch.cuda.is_available() else 'cpu')
     
     bands =  ['B01', 'B02', 'B03', 'B04','B05','B06','B07','B08','B8A', 'B09', 'B11', 'B12']
+    
     dataset = AgriFieldDataset(args.data_dir, 
                                bands=bands, 
                                download=args.download_data,
                                save_cache=True, 
                                train=True,
-                                transform=BaselineTransfrom(bands=bands, crop_size=args.crop_size))
+                               transform=BaselineTransfrom(bands=bands, crop_size=args.crop_size))
     kfold = StratifiedShuffleSplit(n_splits=args.splits, test_size=args.test_size, random_state=args.seed)
     
     for kfold_idx, (train_indices, val_indices) in enumerate(kfold.split(dataset.field_ids, dataset.targets)):
@@ -128,7 +129,6 @@ if __name__ == "__main__":
                     # track history if only in train
                     with torch.set_grad_enabled(phase == 'train'):
                         outputs = model(imgs, masks)
-                        outputs = F.softmax(outputs, 1)
                         preds = torch.argmax(outputs, 1)
                         loss = criterion(outputs, targets)
                         

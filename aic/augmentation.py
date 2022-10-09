@@ -26,6 +26,22 @@ class RotateBands:
             "image": image,
             "mask": mask
         }
+        
+class NormalizeBands:
+    def __init__(self, mean, std, max_pixel_value) -> None:
+        self.mean = mean
+        self.std = std
+        self.max_pixel_value = max_pixel_value
+
+    
+    def __call__(self, image: Union[np.ndarray, Image]) -> Union[np.ndarray, Image]:
+        for c in range(image.shape[-1]):
+            image[:, :, c] = (image[:, :, c]  - self.mean[c]*self.max_pixel_value[c]) / (self.std[c]*self.max_pixel_value[c])
+        
+        return {
+            "image": image
+        }
+        
     
     
 

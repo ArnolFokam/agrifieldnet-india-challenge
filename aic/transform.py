@@ -3,7 +3,7 @@ from typing import Dict, List, Union
 from PIL.Image import Image
 import torch
 import scipy
-from aic.augmentation import RandomFieldAreaCrop, ReduceSkewness, RotateBands
+from aic.augmentation import RandomFieldAreaCrop, ReduceSkewness, RotateBands, NormalizeBands
 
 import albumentations as A
 import albumentations.pytorch.transforms as TorchT
@@ -19,7 +19,9 @@ class BaselineTransfrom:
         # transform that change the value of a voxel in the spectral bands
         self.voxel_value_transform = A.Compose([
             ReduceSkewness(),
-            A.Normalize(mean=[AgriFieldDataset.mean[band] for band in self.bands], std=[AgriFieldDataset.std[band] for band in self.bands])
+            NormalizeBands(mean=[AgriFieldDataset.mean[band] for band in self.bands], 
+                           std=[AgriFieldDataset.std[band] for band in self.bands],
+                           max_pixel_value=[AgriFieldDataset.max_pixel_value[band] for band in self.bands])
         ])
 
         # transform that changes the geometric shape of the image (rotation, translation, etc)
@@ -49,7 +51,8 @@ class BaselineTransfrom:
         }
 
 if __name__ == '__main__':
-    ds = AgriFieldDataset('data/source', transform=BaselineTransfrom(crop_size=16), train=True)
+    bands = ["B01"]
+    ds = AgriFieldDataset('data/source', bands=bands, transform=BaselineTransfrom(bands=bands, crop_size=16), train=True)
     loader = torch.utils.data.DataLoader(ds, batch_size=20, shuffle=False)
     loader = iter(loader)
     fids, imgs, masks, targets = next(loader)
