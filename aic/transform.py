@@ -18,10 +18,9 @@ class BaselineTransfrom:
         
         # transform that change the value of a voxel in the spectral bands
         self.voxel_value_transform = A.Compose([
-            ReduceSkewness(),
             NormalizeBands(mean=[AgriFieldDataset.mean[band] for band in self.bands], 
-                           std=[AgriFieldDataset.std[band] for band in self.bands],
-                           max_pixel_value=[AgriFieldDataset.max_pixel_value[band] for band in self.bands])
+                           std=[AgriFieldDataset.std[band] for band in self.bands]),
+            ReduceSkewness(),
         ])
 
         # transform that changes the geometric shape of the image (rotation, translation, etc)
@@ -40,7 +39,7 @@ class BaselineTransfrom:
         image = self.voxel_value_transform(image=image)["image"]
         
         # dilate mask to slight increase the region of interest
-        mask = scipy.ndimage.binary_dilation(mask.astype(np.uint8), structure=np.ones((5, 5),np.uint8), iterations = 2)
+        mask = scipy.ndimage.binary_dilation(mask.astype(np.uint8), structure=np.ones((5, 5),np.uint8), iterations = 2).astype(np.float64)
         
         transformed = self.geometric_transform(image=image, mask=mask)
         transformed = self.final_transform(image=transformed["image"], mask=transformed["mask"])

@@ -136,7 +136,6 @@ class AgriFieldDataset(torch.utils.data.Dataset):
                 bands_src = [rasterio.open(f'{self.root_dir}/{dataset_name}/{source_collection}/{source_collection}_{fidx}/{band}.tif') for band in self.selected_bands]
                 bands_array = [np.expand_dims(band.read(1), axis=0) for band in bands_src]
                 bands = np.vstack(bands_array).transpose(1, 2, 0) # convert to H x W x C
-                
 
                 if self.train:
                     with rasterio.open(f'{self.root_dir}/{dataset_name}/{label_collection}/{label_collection}_{fidx}/raster_labels.tif') as src:
@@ -155,7 +154,9 @@ class AgriFieldDataset(torch.utils.data.Dataset):
                     self.imgs.append(bands)
 
                     # append field mask
-                    mask = np.where(field_data == fid, 1, 0)
+                    mask = field_data.copy()
+                    mask[mask != fid] = 0
+                    mask[mask == fid] = 1
                     
                     assert np.array_equal(np.unique(mask) , np.array([0, 1])), "[Incorrect code] mask must be binary"
                     
@@ -212,7 +213,7 @@ class AgriFieldDataset(torch.utils.data.Dataset):
         field_id, image, field_mask, target = self.field_ids[index], self.imgs[index], self.field_masks[index], self.targets[index]
                 
         if self.transform:
-            transformed = self.transform(image=image, mask=field_mask)
+            transformed = self.transform(image=image.astype(np.float64), mask=field_mask.astype(np.float64))
             image = transformed["image"].float()
             field_mask = transformed["mask"].float()
         else:

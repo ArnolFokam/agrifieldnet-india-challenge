@@ -7,7 +7,7 @@ from scipy import ndimage
 class ReduceSkewness:
     def __call__(self, image: Union[np.ndarray, Image]):
         return {
-            "image": np.sqrt(image).astype(np.uint8)
+            "image": (image ** 3).astype(np.float64)
         }
 
 class RotateBands:
@@ -16,30 +16,29 @@ class RotateBands:
         self.p = p
 
     
-    def __call__(self, image: Union[np.ndarray, Image], mask: Union[np.ndarray, Image]) ->  Dict[str,  Union[np.ndarray, Image]]:
+    def __call__(self, image: Union[np.ndarray, Image], mask: Union[np.ndarray, Image]) ->  Dict[str,  np.ndarray]:
         if np.random.random() > self.p:
             angle = np.random.uniform(-abs(self.limit), abs(self.limit))
-            image = ndimage.rotate(image, angle, reshape=False).astype(np.uint8)
-            mask = ndimage.rotate(mask, angle, reshape=False).astype(np.uint8)
+            image = ndimage.rotate(image, angle, reshape=False)
+            mask = ndimage.rotate(mask, angle, reshape=False)
         
         return {
-            "image": image,
-            "mask": mask
+            "image": image.astype(np.float64),
+            "mask": mask.astype(np.float64)
         }
         
 class NormalizeBands:
-    def __init__(self, mean, std, max_pixel_value) -> None:
+    def __init__(self, mean, std) -> None:
         self.mean = mean
         self.std = std
-        self.max_pixel_value = max_pixel_value
 
     
-    def __call__(self, image: Union[np.ndarray, Image]) -> Union[np.ndarray, Image]:
+    def __call__(self, image: Union[np.ndarray, Image]) -> np.ndarray:
         for c in range(image.shape[-1]):
-            image[:, :, c] = (image[:, :, c]  - self.mean[c]*self.max_pixel_value[c]) / (self.std[c]*self.max_pixel_value[c])
+            image[:, :, c] = (image[:, :, c]  - self.mean[c]) / self.std[c]
         
         return {
-            "image": image
+            "image": image.astype(np.float64)
         }
         
     
@@ -49,7 +48,7 @@ class RandomFieldAreaCrop:
     def __init__(self, crop_size: int) -> None:
         self.crop_size = crop_size
 
-    def __call__(self, image: Union[np.ndarray, Image], mask: Union[np.ndarray, Image]) -> Dict[str,  Union[np.ndarray, Image]]:
+    def __call__(self, image: Union[np.ndarray, Image], mask: Union[np.ndarray, Image]) -> Dict[str,  np.ndarray]:
         original_height, original_width = image.shape[:2]
         
         assert self.crop_size <= original_height and self.crop_size <= original_height, "crop area should not be bigger than image"
@@ -89,6 +88,6 @@ class RandomFieldAreaCrop:
         y2 = cy + space_bottom - min(0, top) # add the top offset to the bottom
         
         return {
-            "image": image[y1:y2, x1:x2, :].astype(np.uint8),
-            "mask": mask[y1:y2, x1:x2].astype(np.uint8),
+            "image": image[y1:y2, x1:x2, :].astype(np.float64),
+            "mask": mask[y1:y2, x1:x2].astype(np.float64),
         }

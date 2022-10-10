@@ -18,13 +18,14 @@ class CropClassifier(nn.Module):
         for i in range(len(filters) - 1):
             self.conv_layers.append(self.conv_layer(filters[i], filters[i + 1], kernel_size))
         
+        self.dropout = nn.Dropout(p=0.5)
         self.fc = nn.Linear(filters[-1], n_classes)
         
         self.apply(self._init_weights)
     
     def _init_weights(self, module):
         if isinstance(module, nn.Linear):
-            module.weight.data.normal_(mean=0.0, std=0.05)
+            module.weight.data.normal_(mean=0.0, std=0.005)
             if module.bias is not None:
                 module.bias.data.zero_()
         
@@ -46,8 +47,8 @@ class CropClassifier(nn.Module):
                       padding=kernel_size // 2, 
                       stride=1, 
                       bias=False),
-            nn.GroupNorm(2, out_channels),
-            # nn.BatchNorm2d(out_channels),
+            # nn.GroupNorm(2, out_channels),
+            nn.BatchNorm2d(out_channels),
             nn.ReLU()
         )
         
@@ -59,8 +60,11 @@ class CropClassifier(nn.Module):
             out = self.conv_layers[i](out)
         
         # mask the unwanted pixel features
-        mask = mask.view(mask.size(0), 1, mask.size(-2), mask.size(-1)) # expand mask dim to match conv outpu
+        mask = mask.view(mask.size(0), 1, mask.size(-2), mask.size(-1)) # expand mask dim to match conv output
         out = (out*mask).sum((-2, -1)) / mask.sum((-2, -1))
+        
+        # dropout
+        out = self.dropout(out)
         
         # logits
         out = self.fc(out)

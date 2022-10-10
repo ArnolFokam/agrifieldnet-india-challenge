@@ -27,23 +27,23 @@ parser.add_argument('-o','--output_dir', help='save path for output submission f
 
 # experiment
 parser.add_argument('-s','--seed', help='seed for experiments', default=42, type=int)
-parser.add_argument('-ts','--test_size', help='test size for cross validation', default=0.25, type=float)
+parser.add_argument('-ts','--test_size', help='test size for cross validation', default=0.13, type=float)
 parser.add_argument('-ks','--splits', help='number of splits for cross validation', default=10, type=int)
 
 # data
 parser.add_argument('-d','--data_dir', help='path to data folder', default='data/source', type=str)
 parser.add_argument('-dd','--download_data', help='should we download the data?', default=False, type=bool)
-parser.add_argument('-b','--batch_size', help='batch size', default=64, type=int)
+parser.add_argument('-b','--batch_size', help='batch size', default=128, type=int)
 parser.add_argument('-w','--num_workers', help='number of workers for dataloader', default=8, type=int)
-parser.add_argument('-cs','--crop_size', help='size of the crop image after transform', default=16, type=int)
+parser.add_argument('-cs','--crop_size', help='size of the crop image after transform', default=32, type=int)
 
 # model architeture
-parser.add_argument('-ft', '--filters', help='list of filters for the CNN used', default=[32, 32], nargs='+', type=int)
+parser.add_argument('-ft', '--filters', help='list of filters for the CNN used', default=[64, 64, 64], nargs='+', type=int)
 parser.add_argument('-k', '--kernel_size', help='kernel size for the convolutions', default=3, type=int)
 
 # model optimization & training
 parser.add_argument('-ep','--epochs', help='number of training epochs', default=50, type=int)
-parser.add_argument('-lr','--learning_rate', help='learning rate', default=5e-3, type=float)
+parser.add_argument('-lr','--learning_rate', help='learning rate', default=0.1, type=float)
 
 args = parser.parse_args()
 
