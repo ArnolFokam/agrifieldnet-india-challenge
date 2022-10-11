@@ -4,7 +4,7 @@ from typing import List
 import torch
 import torch.nn as nn
 
-from aic.transform import BaselineTransfrom
+from aic.transform import BaselineTrainTransform
 from aic.dataset import AgriFieldDataset
 
 class CropClassifier(nn.Module):

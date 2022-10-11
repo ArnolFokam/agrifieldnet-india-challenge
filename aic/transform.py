@@ -11,10 +11,18 @@ import albumentations.pytorch.transforms as TorchT
 from aic.dataset import AgriFieldDataset
 
 
-class BaselineTransfrom:
+class BaselineTrainTransform:
     def __init__(self, bands: List[str], crop_size: int = 32) -> None:
         self.crop_size = crop_size
         self.bands = bands
+        
+        # transform for RGB bands
+        self.rgb_transform = A.Compose([
+            A.HueSaturationValue(),
+            A.RGBShift(r_shift_limit=15, g_shift_limit=15, b_shift_limit=15, p=0.5),
+            A.RandomBrightnessContrast(p=0.5),
+            # A.RandomGamma()
+        ])
         
         # transform that change the value of a voxel in the spectral bands
         self.voxel_value_transform = A.Compose([
@@ -26,8 +34,8 @@ class BaselineTransfrom:
         # transform that changes the geometric shape of the image (rotation, translation, etc)
         self.geometric_transform = A.Compose([
             RandomFieldAreaCrop(crop_size=self.crop_size),
-            A.HorizontalFlip(),
-            RotateBands(limit=180)
+            A.Flip(),
+            RotateBands(limit=180),    
         ])
 
         # transform after all the important ones, usually to convert to tensor
@@ -36,6 +44,7 @@ class BaselineTransfrom:
         ])
 
     def __call__(self, image: Union[np.ndarray, Image], mask: Union[np.ndarray, Image]) -> Dict[str,  Union[np.ndarray, Image]]:
+        image[:, :, 3:0:-1] = self.rgb_transform(image=image[:, :, 3:0:-1].astype(np.uint8))["image"]
         image = self.voxel_value_transform(image=image)["image"]
         
         # dilate mask to slight increase the region of interest
@@ -48,10 +57,24 @@ class BaselineTransfrom:
             "image": transformed["image"],
             "mask": transformed["mask"]
         }
+        
+        
+class BaselineEvalTransform(BaselineTrainTransform):
+    def __init__(self, **kwargs):
+        super().__init__(**kwargs)
+        
+        # transform for RGB bands
+        self.rgb_transform = A.Compose([])
+
+        # transform that changes the geometric shape of the image (rotation, translation, etc)
+        self.geometric_transform = A.Compose([
+            RandomFieldAreaCrop(crop_size=self.crop_size), 
+        ])
+    
 
 if __name__ == '__main__':
-    bands = ["B01"]
-    ds = AgriFieldDataset('data/source', bands=bands, transform=BaselineTransfrom(bands=bands, crop_size=16), train=True)
+    bands = ['B01', 'B02', 'B03', 'B04','B05','B06','B07','B08','B8A', 'B09', 'B11', 'B12']
+    ds = AgriFieldDataset('data/source', bands=bands, transform=BaselineTrainTransform(bands=bands, crop_size=16), train=True)
     loader = torch.utils.data.DataLoader(ds, batch_size=20, shuffle=False)
     loader = iter(loader)
     fids, imgs, masks, targets = next(loader)

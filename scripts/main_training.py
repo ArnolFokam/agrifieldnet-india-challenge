@@ -24,7 +24,7 @@ from sklearn.metrics import precision_recall_fscore_support, accuracy_score
 from aic.utils import predict
 from aic.model import CropClassifier
 from aic.dataset import AgriFieldDataset
-from aic.transform import BaselineTransfrom
+from aic.transform import BaselineTrainTransform, BaselineEvalTransform
 from aic.helpers import seed_everything, get_dir, generate_random_string
 
 
@@ -221,7 +221,7 @@ if __name__ == "__main__":
                                download=args.download_data,
                                save_cache=True, 
                                train=True,
-                               transform=BaselineTransfrom(bands=args.bands, crop_size=args.crop_size))
+                               transform=BaselineTrainTransform(bands=args.bands, crop_size=args.crop_size))
     kfold = StratifiedShuffleSplit(n_splits=args.splits, test_size=args.test_size, random_state=args.seed)
     
     # arrays of model from cross validation of each snapshots
@@ -235,6 +235,7 @@ if __name__ == "__main__":
         
         train_ds = Subset(dataset, train_indices)
         val_ds = Subset(dataset, val_indices)
+        val_ds.transform = BaselineEvalTransform(bands=args.bands, crop_size=args.crop_size)
         
         train_classes_weights = AgriFieldDataset.get_class_weights(train_ds.dataset.targets[train_ds.indices])
         train_classes_weights_inverted = { k: 1 / v for k, v in train_classes_weights.items()}
@@ -290,12 +291,12 @@ if __name__ == "__main__":
             logging.info(f'Predict output of test data...')
             
             # TODO: load model from path if given or load from previous training or throw error
-            test_test_dataset = AgriFieldDataset(args.data_dir,
+            test__dataset = AgriFieldDataset(args.data_dir,
                                        bands=args.bands,
                                        download=args.download_data,
                                        save_cache=True,
                                        train=False,
-                                       transform=BaselineTransfrom(bands=args.bands, crop_size=args.crop_size))
+                                       transform=BaselineEvalTransform(bands=args.bands, crop_size=args.crop_size))
             test_loader = DataLoader(test_dataset, batch_size=1, shuffle=False, num_workers=8)
             preds = predict(models, test_loader, device, num_classes=test_dataset.num_classes)
             
