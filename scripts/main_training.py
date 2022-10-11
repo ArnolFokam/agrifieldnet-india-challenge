@@ -14,7 +14,7 @@ import torch.nn.functional as F
 from torch.utils.data import Subset, DataLoader
 from torch.utils.data.sampler import WeightedRandomSampler
 from sklearn.model_selection import StratifiedShuffleSplit
-from sklearn.metrics import precision_recall_fscore_support
+from sklearn.metrics import precision_recall_fscore_support, accuracy_score
 
 from aic.model import CropClassifier
 from aic.helpers import seed_everything
@@ -51,6 +51,8 @@ parser.add_argument('-lr','--learning_rate', help='learning rate', default=0.1, 
 parser.add_argument('-c','--cycles', help='trainin cycle for the model snapshot', default=5, type=int)
 
 args = parser.parse_args()
+
+logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s: %(message)s', datefmt='%H:%M:%S')
 
 def train_val_single_epoch(model, criterion, optimizer, scheduler, dataloader, device, phase):
     if phase == 'train':
@@ -113,8 +115,8 @@ def train_model_snapshot(model, criterion, learning_rate, dataloaders, device, n
         
         for epoch in range(num_epochs_per_cycle):
             
-            logging.info('{}th fold: \nCycle {}: Epoch {}/{}'.format(kfold_idx + 1, cycle + 1, epoch + 1, num_epochs_per_cycle))
-            print('-' * 15)
+            logging.info('\n{}th fold: Cycle {}: Epoch {}/{}'.format(kfold_idx + 1, cycle + 1, epoch + 1, num_epochs_per_cycle))
+            print('-' * 20)
 
             # Each epoch has a training and validation phase
             for phase in ['train', 'val']:
@@ -183,9 +185,8 @@ def train_model_snapshot(model, criterion, learning_rate, dataloaders, device, n
     ensemble_loss /= len(dataloaders['val'])
 
     time_elapsed = time.time() - since
-    print('Training complete in {:.0f}m {:.0f}s'.format(
-        time_elapsed // 60, time_elapsed % 60))
-    print('Ensemble Loss : {:4f}, Best cycle val Loss: {:4f}'.format(ensemble_loss, best_loss))
+    logging.info('{}th fold: Training complete in {:.0f}m {:.0f}s'.format(kfold_idx + 1, time_elapsed // 60, time_elapsed % 60))
+    logging.info('{}th fold: Ensemble Loss : {:4f}, Best cycle val Loss: {:4f}'.format(kfold_idx + 1, ensemble_loss, best_loss))
     
     # load snapshot model weights and combine them in array
     best_models = []
@@ -202,20 +203,21 @@ if __name__ == "__main__":
     device = torch.device('cuda:0' if torch.cuda.is_available() else 'cpu')
     
     dataset = AgriFieldDataset(args.data_dir, 
-                               bands=bands, 
+                               bands=args.bands, 
                                download=args.download_data,
                                save_cache=True, 
                                train=True,
-                               transform=BaselineTransfrom(bands=bands, crop_size=args.crop_size))
+                               transform=BaselineTransfrom(bands=args.bands, crop_size=args.crop_size))
     kfold = StratifiedShuffleSplit(n_splits=args.splits, test_size=args.test_size, random_state=args.seed)
     
+    # arrays of model from cross validation of each snapshots
     models_arr = []
     
     for kfold_idx, (train_indices, val_indices) in enumerate(kfold.split(dataset.field_ids, dataset.targets)):
         
-        logging.info(f'{kfold_idx}th fold: {len(train_indices)} trains, {len(val_indices)} vals')
+        logging.info(f'{kfold_idx + 1}th fold: {len(train_indices)} trains, {len(val_indices)} vals')
         
-        logging.info(f'{kfold_idx}th fold: Loading dataset')
+        logging.info(f'{kfold_idx + 1}th fold: Loading dataset')
         
         train_ds = Subset(dataset, train_indices)
         val_ds = Subset(dataset, val_indices)
@@ -236,7 +238,7 @@ if __name__ == "__main__":
         }
         
         # model
-        logging.info(f'{kfold_idx}th fold: preparing model...')
+        logging.info(f'{kfold_idx + 1}th fold: preparing model...')
         model = CropClassifier(n_classes=len(train_classes_weights.keys()), 
                                n_bands=len(train_ds.dataset.selected_bands), 
                                filters=args.filters,
@@ -244,13 +246,13 @@ if __name__ == "__main__":
         model = model.to(device)
         
         # loss function
-        logging.info(f'{kfold_idx}th fold: preparing loss function...')
+        logging.info(f'{kfold_idx + 1}th fold: preparing loss function...')
         # criterion = nn.CrossEntropyLoss(weight=torch.FloatTensor(list(train_classes_weights_inverted.values()))) hurts performance
         criterion = nn.CrossEntropyLoss()    
         criterion.to(device)
         
         # get a snapshot of model for this k fold
-        logging.info(f'{kfold_idx}th fold: getting model snapshots...')
+        logging.info(f'{kfold_idx + 1}th fold: getting model snapshots...')
         best_models, _, _ = train_model_snapshot(model,
                                                  criterion,
                                                  args.learning_rate,
