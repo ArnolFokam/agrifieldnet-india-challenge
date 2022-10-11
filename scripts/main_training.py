@@ -36,7 +36,7 @@ parser.add_argument('-s','--seed', help='seed for experiments', default=42, type
 parser.add_argument('-ts','--test_size', help='test size for cross validation', default=0.13, type=float)
 parser.add_argument('-ks','--splits', help='number of splits for cross validation', default=10, type=int)
 parser.add_argument('-p','--predict', help='predict the classes for the test data in a submission file', default=True, type=bool)
-parser.add_argument('-ssp','--sample_submission_path', help='path to the sample submssion path', default='data/source/Sample_Submission.csv', type=str)
+parser.add_argument('-ssp','--sample_submission_path', help='path to the sample submssion path', default='data/source/SampleSubmission.csv', type=str)
 
 # data
 parser.add_argument('-d','--data_dir', help='path to data folder', default='data/source', type=str)
@@ -298,15 +298,15 @@ if __name__ == "__main__":
             preds = predict(models, test_loader, device, num_classes=dataset.num_classes)
             
             preds = np.concatenate((dataset.field_ids[..., np.newaxis], preds), axis=-1, dtype=object)
-            preds = pd.DataFrame(results, columns=['Field_ID', *['Crop_ID_%d'%(i+1) for i in range(dataset.num_classes)]])
+            preds = pd.DataFrame(preds, columns=['Field_ID', *['Crop_ID_%d'%(i+1) for i in range(dataset.num_classes)]])
             preds = preds.groupby('Field_ID').mean()
             
             # make a submission
             sub = pd.read_csv(args.sample_submission_path)
             sub['Field_ID'] = np.unique(dataset.field_ids)
             
-            for i in range(res.shape[1]):
-                sub['Crop_ID_%d'%(i+1)] = preds['Crop_ID_%d'%(i+1)]
+            for i in range(dataset.num_classes):
+                sub.iloc[:, i + 1] = preds['Crop_ID_%d'%(i+1)].tolist()
 
             sub.to_csv(os.path.join(results_dir, 'submission.csv'), index = False)
             logging.info(f'Submission saved at {os.path.join(results_dir, "submission.csv")}')
