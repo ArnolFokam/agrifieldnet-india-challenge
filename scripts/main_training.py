@@ -3,6 +3,7 @@ Credits: https://github.com/radiantearth/crop-type-detection-ICLR-2020/blob/mast
 """
 
 import copy
+import logging
 import argparse
 
 import torch
@@ -39,7 +40,6 @@ parser.add_argument('-cs','--crop_size', help='size of the crop image after tran
 parser.add_argument('-bd','--bands', help='bands to use for our training', 
                     default=['B01', 'B02', 'B03', 'B04','B05','B06','B07','B08','B8A', 'B09', 'B11', 'B12'], nargs='+', type=str)
 
-
 # model architeture
 parser.add_argument('-ft', '--filters', help='list of filters for the CNN used', default=[64, 64, 64], nargs='+', type=int)
 parser.add_argument('-k', '--kernel_size', help='kernel size for the convolutions', default=3, type=int)
@@ -47,6 +47,7 @@ parser.add_argument('-k', '--kernel_size', help='kernel size for the convolution
 # model optimization & training
 parser.add_argument('-ep','--epochs', help='number of training epochs', default=50, type=int)
 parser.add_argument('-lr','--learning_rate', help='learning rate', default=0.1, type=float)
+parser.add_argument('-c','--cycles', help='trainin cycle for the model snapshot', default=5, type=int)
 
 args = parser.parse_args()
 
@@ -186,6 +187,8 @@ def train_model_snapshot(model, criterion, learning_rate, dataloaders, device, n
     return best_models, ensemble_loss, best_loss
 
 if __name__ == "__main__":
+    logging.info(f'Preparing dataset...')
+    
     seed_everything(args.seed)
     device = torch.device('cuda:0' if torch.cuda.is_available() else 'cpu')
     
@@ -197,7 +200,14 @@ if __name__ == "__main__":
                                transform=BaselineTransfrom(bands=bands, crop_size=args.crop_size))
     kfold = StratifiedShuffleSplit(n_splits=args.splits, test_size=args.test_size, random_state=args.seed)
     
+    models_arr = []
+    
     for kfold_idx, (train_indices, val_indices) in enumerate(kfold.split(dataset.field_ids, dataset.targets)):
+        
+        logging.info(f'{kfold_idx}th fold: {len(train_indices)} trains, {len(val_indices)} vals')
+        
+        logging.info(f'{kfold_idx}th fold: Loading dataset')
+        
         train_ds = Subset(dataset, train_indices)
         val_ds = Subset(dataset, val_indices)
         
@@ -217,6 +227,7 @@ if __name__ == "__main__":
         }
         
         # model
+        logging.info(f'{kfold_idx}th fold: preparing model...')
         model = CropClassifier(n_classes=len(train_classes_weights.keys()), 
                                n_bands=len(train_ds.dataset.selected_bands), 
                                filters=args.filters,
@@ -224,17 +235,19 @@ if __name__ == "__main__":
         model = model.to(device)
         
         # loss function
+        logging.info(f'{kfold_idx}th fold: preparing loss function...')
         # criterion = nn.CrossEntropyLoss(weight=torch.FloatTensor(list(train_classes_weights_inverted.values()))) hurts performance
         criterion = nn.CrossEntropyLoss()    
         criterion.to(device)
         
         # get a snapshot of model for this k fold
-        best_models, _, _ = train_model_snapshot(model_ft,
+        logging.info(f'{kfold_idx}th fold: getting model snapshots...')
+        best_models, _, _ = train_model_snapshot(model,
                                                  criterion,
                                                  args.learning_rate,
                                                  dataloaders,
                                                  device,
-                                                 num_cycles=6,
+                                                 num_cycles=args.cycles,
                                                  num_epochs_per_cycle=args.epochs)
         models_arr.extend(best_models)
 
