@@ -31,3 +31,6 @@ def get_folder_ids(data_dir, dataset_name, collection):
         collention_folder_ids = [i['href'].split('_')[-1].split('.')[0] for i in collention_json['links'][4:]]
 
         return collention_folder_ids
+    
+def generate_random_string(length: int = 10):
+    return ''.join(random.choices(string.ascii_uppercase + string.digits, k=length))

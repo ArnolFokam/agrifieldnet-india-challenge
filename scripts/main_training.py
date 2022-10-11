@@ -17,15 +17,15 @@ from sklearn.model_selection import StratifiedShuffleSplit
 from sklearn.metrics import precision_recall_fscore_support, accuracy_score
 
 from aic.model import CropClassifier
-from aic.helpers import seed_everything
 from aic.dataset import AgriFieldDataset
 from aic.transform import BaselineTransfrom
+from aic.helpers import seed_everything, generate_random_string
 
 
 parser = argparse.ArgumentParser(description='Ensemble training script')
 
 # general
-parser.add_argument('-o','--output_dir', help='save path for output submission file', default='results', type=str)
+parser.add_argument('-o','--output_dir', help='save path for trained models', default='results', type=str)
 
 # experiment
 parser.add_argument('-s','--seed', help='seed for experiments', default=42, type=int)
@@ -46,7 +46,7 @@ parser.add_argument('-ft', '--filters', help='list of filters for the CNN used',
 parser.add_argument('-k', '--kernel_size', help='kernel size for the convolutions', default=3, type=int)
 
 # model optimization & training
-parser.add_argument('-ep','--epochs', help='number of training epochs', default=50, type=int)
+parser.add_argument('-ep','--epochs', help='number of training epochs', default=10, type=int)
 parser.add_argument('-lr','--learning_rate', help='learning rate', default=0.1, type=float)
 parser.add_argument('-c','--cycles', help='trainin cycle for the model snapshot', default=5, type=int)
 
@@ -114,7 +114,7 @@ def train_model_snapshot(model, criterion, learning_rate, dataloaders, device, n
         scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(optimizer, 10*len(dataloaders['train']))
         
         for epoch in range(num_epochs_per_cycle):
-            
+            print('\n')
             logging.info('Fold {}: Cycle {}: Epoch {}/{}'.format(kfold_idx + 1, cycle + 1, epoch + 1, num_epochs_per_cycle))
             print('-' * 20)
 
@@ -137,7 +137,7 @@ def train_model_snapshot(model, criterion, learning_rate, dataloaders, device, n
                     'Epoch {}/{}: '
                     'Phase {}: '
                     'Loss: {:.6f} '
-                    'Acc {:.6f}'
+                    'Acc {:.6f} '
                     'Prec: {:.6f} '
                     'Rec: {:.6f} '
                     'F1: {:.6f}'.format(kfold_idx + 1, 
@@ -197,6 +197,8 @@ def train_model_snapshot(model, criterion, learning_rate, dataloaders, device, n
     return best_models, ensemble_loss, best_loss
 
 if __name__ == "__main__":
+    result_dir = get_dir(f'{args.output_dir}/{generate_random_string()}')
+    
     logging.info(f'Preparing dataset...')
     
     seed_everything(args.seed)
