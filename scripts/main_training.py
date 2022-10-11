@@ -24,7 +24,7 @@ from sklearn.metrics import precision_recall_fscore_support, accuracy_score
 from aic.utils import predict
 from aic.model import CropClassifier
 from aic.dataset import AgriFieldDataset
-from aic.transform import BaselineTrainTransform, BaselineEvalTransform
+from aic.transform import BaselineTrainTransform
 from aic.helpers import seed_everything, get_dir, generate_random_string
 
 
@@ -35,7 +35,7 @@ parser.add_argument('-o','--output_dir', help='save path for trained models', de
 
 # experiment
 parser.add_argument('-s','--seed', help='seed for experiments', default=42, type=int)
-parser.add_argument('-ts','--test_size', help='test size for cross validation', default=0.13, type=float)
+parser.add_argument('-ts','--test_size', help='test size for cross validation', default=0.20, type=float)
 parser.add_argument('-ks','--splits', help='number of splits for cross validation', default=10, type=int)
 parser.add_argument('-p','--predict', help='predict the classes for the test data in a submission file', default=True, type=bool)
 parser.add_argument('-ssp','--sample_submission_path', help='path to the sample submssion path', default='data/source/SampleSubmission.csv', type=str)
@@ -43,14 +43,14 @@ parser.add_argument('-ssp','--sample_submission_path', help='path to the sample 
 # data
 parser.add_argument('-d','--data_dir', help='path to data folder', default='data/source', type=str)
 parser.add_argument('-dd','--download_data', help='should we download the data?', default=False, type=bool)
-parser.add_argument('-b','--batch_size', help='batch size', default=128, type=int)
+parser.add_argument('-b','--batch_size', help='batch size', default=512, type=int)
 parser.add_argument('-w','--num_workers', help='number of workers for dataloader', default=8, type=int)
 parser.add_argument('-cs','--crop_size', help='size of the crop image after transform', default=32, type=int)
 parser.add_argument('-bd','--bands', help='bands to use for our training', 
                     default=['B01', 'B02', 'B03', 'B04','B05','B06','B07','B08','B8A', 'B09', 'B11', 'B12'], nargs='+', type=str)
 
 # model architeture
-parser.add_argument('-ft', '--filters', help='list of filters for the CNN used', default=[64, 64, 64], nargs='+', type=int)
+parser.add_argument('-ft', '--filters', help='list of filters for the CNN used', default=[64, 128, 128], nargs='+', type=int)
 parser.add_argument('-k', '--kernel_size', help='kernel size for the convolutions', default=3, type=int)
 
 # model optimization & training
@@ -235,7 +235,7 @@ if __name__ == "__main__":
         
         train_ds = Subset(dataset, train_indices)
         val_ds = Subset(dataset, val_indices)
-        val_ds.transform = BaselineEvalTransform(bands=args.bands, crop_size=args.crop_size)
+        val_ds.transform = BaselineTrainTransform(bands=args.bands, crop_size=args.crop_size)
         
         train_classes_weights = AgriFieldDataset.get_class_weights(train_ds.dataset.targets[train_ds.indices])
         train_classes_weights_inverted = { k: 1 / v for k, v in train_classes_weights.items()}
@@ -291,12 +291,12 @@ if __name__ == "__main__":
             logging.info(f'Predict output of test data...')
             
             # TODO: load model from path if given or load from previous training or throw error
-            test__dataset = AgriFieldDataset(args.data_dir,
+            test_dataset = AgriFieldDataset(args.data_dir,
                                        bands=args.bands,
                                        download=args.download_data,
                                        save_cache=True,
                                        train=False,
-                                       transform=BaselineEvalTransform(bands=args.bands, crop_size=args.crop_size))
+                                       transform=BaselineTrainTransform(bands=args.bands, crop_size=args.crop_size))
             test_loader = DataLoader(test_dataset, batch_size=1, shuffle=False, num_workers=8)
             preds = predict(models, test_loader, device, num_classes=test_dataset.num_classes)
             

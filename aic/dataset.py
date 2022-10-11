@@ -71,6 +71,22 @@ class AgriFieldDataset(torch.utils.data.Dataset):
         'B11': 255, 
         'B12': 255
     }
+    
+    crops = {
+            1: "Wheat",
+            2: "Mustard",
+            3: "Lentil",
+            4: "No Crop/Fallow",
+            5: "Green pea",
+            6: "Sugarcane",
+            8: "Garlic",
+            9: "Maize",
+            13: "Gram",
+            14: "Coriander",
+            15: "Potato",
+            16: "Bersem",
+            36: "Rice"
+        }
 
     
     
@@ -270,24 +286,9 @@ class AgriFieldDataset(torch.utils.data.Dataset):
         from the dataset to contiguous index 
         from 0 - 13 for classification loss
         """
-        crops = {
-            1: "Wheat",
-            2: "Mustard",
-            3: "Lentil",
-            4: "No Crop/Fallow",
-            5: "Green pea",
-            6: "Sugarcane",
-            8: "Garlic",
-            9: "Maize",
-            13: "Gram",
-            14: "Coriander",
-            15: "Potato",
-            16: "Bersem",
-            36: "Rice"
-        }
 
         return { k: { 
-            "name": crops[k], 
+            "name": self.scrops[k], 
             "loss_label": v,
         } for k, v in zip(self.crops.keys(), range(len(self.crops.keys())))}
 

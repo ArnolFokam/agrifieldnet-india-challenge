@@ -18,9 +18,9 @@ class BaselineTrainTransform:
         
         # transform for RGB bands
         self.rgb_transform = A.Compose([
-            A.HueSaturationValue(),
-            A.RGBShift(r_shift_limit=15, g_shift_limit=15, b_shift_limit=15, p=0.5),
-            A.RandomBrightnessContrast(p=0.5),
+            # A.HueSaturationValue(p=0.3),
+            # A.RGBShift(r_shift_limit=15, g_shift_limit=15, b_shift_limit=15, p=0.3),
+            # A.RandomBrightnessContrast(p=0.3),
             # A.RandomGamma()
         ])
         
@@ -44,7 +44,7 @@ class BaselineTrainTransform:
         ])
 
     def __call__(self, image: Union[np.ndarray, Image], mask: Union[np.ndarray, Image]) -> Dict[str,  Union[np.ndarray, Image]]:
-        image[:, :, 3:0:-1] = self.rgb_transform(image=image[:, :, 3:0:-1].astype(np.uint8))["image"]
+        # image[:, :, 3:0:-1] = self.rgb_transform(image=image[:, :, 3:0:-1])["image"]
         image = self.voxel_value_transform(image=image)["image"]
         
         # dilate mask to slight increase the region of interest
