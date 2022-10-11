@@ -3,6 +3,7 @@ Credits: https://github.com/radiantearth/crop-type-detection-ICLR-2020/blob/mast
 """
 
 import copy
+import time
 import logging
 import argparse
 
@@ -95,7 +96,7 @@ def train_val_single_epoch(model, criterion, optimizer, scheduler, dataloader, d
             
     return running_loss, running_preds, running_targets
 
-def train_model_snapshot(model, criterion, learning_rate, dataloaders, device, num_cycles, num_epochs_per_cycle):
+def train_model_snapshot(model, criterion, learning_rate, dataloaders, device, num_cycles, num_epochs_per_cycle, kfold_idx):
     
     # time training
     since = time.time()
@@ -112,7 +113,7 @@ def train_model_snapshot(model, criterion, learning_rate, dataloaders, device, n
         
         for epoch in range(num_epochs_per_cycle):
             
-            print('\nCycle {}: KFold-{}: Epoch {}/{}'.format(cycle + 1, kfold_idx + 1, epoch + 1, num_epochs_per_cycle))
+            logging.info('{}th fold: \nCycle {}: Epoch {}/{}'.format(kfold_idx + 1, cycle + 1, epoch + 1, num_epochs_per_cycle))
             print('-' * 15)
 
             # Each epoch has a training and validation phase
@@ -128,14 +129,22 @@ def train_model_snapshot(model, criterion, learning_rate, dataloaders, device, n
                 
                 epoch_loss = running_loss / len(dataloaders[phase])
                 
-                print('{}:::: '
-                      'Loss: {:.4f} '
-                      'Prec: {:.4f} '
-                      'Rec: {:.4f} '
-                      'F1: {:.4f}'.format(phase, epoch_loss, 
-                                          *precision_recall_fscore_support(running_targets, 
-                                                                           running_preds, 
-                                                                           average='micro')[:3]))
+                logging.info(
+                    '{}th fold: '
+                    '\nCycle {}: '
+                    'Epoch {}/{}: '
+                    'Phase {}: '
+                    'Loss: {:.6f} '
+                    'Acc {:.6f}',
+                    'Prec: {:.6f} '
+                    'Rec: {:.6f} '
+                    'F1: {:.6f}'.format(kfold_idx + 1, 
+                                        cycle + 1, 
+                                        epoch + 1, num_epochs_per_cycle,
+                                        phase, 
+                                        epoch_loss,
+                                        accuracy_score(running_targets, running_preds)
+                                        *precision_recall_fscore_support(running_targets,running_preds, average='micro')[:3]))
                 
                 # copy the model with the best validation loss as the best model
                 if phase == 'val' and epoch_loss < best_loss:
@@ -248,7 +257,8 @@ if __name__ == "__main__":
                                                  dataloaders,
                                                  device,
                                                  num_cycles=args.cycles,
-                                                 num_epochs_per_cycle=args.epochs)
+                                                 num_epochs_per_cycle=args.epochs,
+                                                 kfold_idx=kfold_idx)
         models_arr.extend(best_models)
 
         
