@@ -115,7 +115,7 @@ def train_model_snapshot(model, criterion, learning_rate, dataloaders, device, n
         
         for epoch in range(num_epochs_per_cycle):
             
-            logging.info('\n{}th fold: Cycle {}: Epoch {}/{}'.format(kfold_idx + 1, cycle + 1, epoch + 1, num_epochs_per_cycle))
+            logging.info('Fold {}: Cycle {}: Epoch {}/{}'.format(kfold_idx + 1, cycle + 1, epoch + 1, num_epochs_per_cycle))
             print('-' * 20)
 
             # Each epoch has a training and validation phase
@@ -132,12 +132,12 @@ def train_model_snapshot(model, criterion, learning_rate, dataloaders, device, n
                 epoch_loss = running_loss / len(dataloaders[phase])
                 
                 logging.info(
-                    '{}th fold: '
-                    '\nCycle {}: '
+                    'Fold {}: '
+                    'Cycle {}: '
                     'Epoch {}/{}: '
                     'Phase {}: '
                     'Loss: {:.6f} '
-                    'Acc {:.6f}',
+                    'Acc {:.6f}'
                     'Prec: {:.6f} '
                     'Rec: {:.6f} '
                     'F1: {:.6f}'.format(kfold_idx + 1, 
@@ -145,7 +145,7 @@ def train_model_snapshot(model, criterion, learning_rate, dataloaders, device, n
                                         epoch + 1, num_epochs_per_cycle,
                                         phase, 
                                         epoch_loss,
-                                        accuracy_score(running_targets, running_preds)
+                                        accuracy_score(running_targets, running_preds),
                                         *precision_recall_fscore_support(running_targets,running_preds, average='micro')[:3]))
                 
                 # copy the model with the best validation loss as the best model
@@ -185,8 +185,8 @@ def train_model_snapshot(model, criterion, learning_rate, dataloaders, device, n
     ensemble_loss /= len(dataloaders['val'])
 
     time_elapsed = time.time() - since
-    logging.info('{}th fold: Training complete in {:.0f}m {:.0f}s'.format(kfold_idx + 1, time_elapsed // 60, time_elapsed % 60))
-    logging.info('{}th fold: Ensemble Loss : {:4f}, Best cycle val Loss: {:4f}'.format(kfold_idx + 1, ensemble_loss, best_loss))
+    logging.info('Fold {}: Training complete in {:.0f}m {:.0f}s'.format(kfold_idx + 1, time_elapsed // 60, time_elapsed % 60))
+    logging.info('Fold {}: Ensemble Loss : {:4f}, Best cycle val Loss: {:4f}'.format(kfold_idx + 1, ensemble_loss, best_loss))
     
     # load snapshot model weights and combine them in array
     best_models = []
@@ -215,9 +215,9 @@ if __name__ == "__main__":
     
     for kfold_idx, (train_indices, val_indices) in enumerate(kfold.split(dataset.field_ids, dataset.targets)):
         
-        logging.info(f'{kfold_idx + 1}th fold: {len(train_indices)} trains, {len(val_indices)} vals')
+        logging.info(f'Fold {kfold_idx + 1}: {len(train_indices)} trains, {len(val_indices)} vals')
         
-        logging.info(f'{kfold_idx + 1}th fold: Loading dataset')
+        logging.info(f'Fold {kfold_idx + 1}: Loading dataset')
         
         train_ds = Subset(dataset, train_indices)
         val_ds = Subset(dataset, val_indices)
@@ -238,7 +238,7 @@ if __name__ == "__main__":
         }
         
         # model
-        logging.info(f'{kfold_idx + 1}th fold: preparing model...')
+        logging.info(f'Fold {kfold_idx + 1}: preparing model...')
         model = CropClassifier(n_classes=len(train_classes_weights.keys()), 
                                n_bands=len(train_ds.dataset.selected_bands), 
                                filters=args.filters,
@@ -246,13 +246,13 @@ if __name__ == "__main__":
         model = model.to(device)
         
         # loss function
-        logging.info(f'{kfold_idx + 1}th fold: preparing loss function...')
+        logging.info(f'Fold {kfold_idx + 1}: preparing loss function...')
         # criterion = nn.CrossEntropyLoss(weight=torch.FloatTensor(list(train_classes_weights_inverted.values()))) hurts performance
         criterion = nn.CrossEntropyLoss()    
         criterion.to(device)
         
         # get a snapshot of model for this k fold
-        logging.info(f'{kfold_idx + 1}th fold: getting model snapshots...')
+        logging.info(f'Fold {kfold_idx + 1}: getting model snapshots...')
         best_models, _, _ = train_model_snapshot(model,
                                                  criterion,
                                                  args.learning_rate,
