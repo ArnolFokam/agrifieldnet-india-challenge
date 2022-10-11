@@ -188,7 +188,7 @@ def train_model_snapshot(model, criterion, learning_rate, dataloaders, device, n
         
         prob /= num_cycles
         loss = F.nll_loss(torch.log(prob), targets)    
-        ensemble_loss += loss.item() * imgs.size(0)
+        ensemble_loss += loss.item() # * imgs.size(0)
     
     ensemble_loss /= len(dataloaders['val'])
 
@@ -285,6 +285,8 @@ if __name__ == "__main__":
             yaml.dump(args.__dict__, f)
         
         if args.predict:
+            logging.info(f'Predict output of test data...')
+            
             # TODO: load model from path if given or load from previous training or throw error
             dataset = AgriFieldDataset(args.data_dir,
                                        bands=args.bands,
@@ -293,15 +295,20 @@ if __name__ == "__main__":
                                        train=False,
                                        transform=BaselineTransfrom(bands=args.bands, crop_size=args.crop_size))
             test_loader = DataLoader(dataset, batch_size=1, shuffle=False, num_workers=8)
-            res = predict(models, test_loader, device, num_classes=dataset.num_classes)
+            preds = predict(models, test_loader, device, num_classes=dataset.num_classes)
+            
+            preds = np.concatenate((dataset.field_ids[..., np.newaxis], preds), axis=-1, dtype=object)
+            preds = pd.DataFrame(results, columns=['Field_ID', *['Crop_ID_%d'%(i+1) for i in range(dataset.num_classes)]])
+            preds = preds.groupby('Field_ID').mean()
             
             # make a submission
             sub = pd.read_csv(args.sample_submission_path)
             sub['Field_ID'] = np.unique(dataset.field_ids)
             
             for i in range(res.shape[1]):
-                sub['Crop_ID_%d'%(i+1)] = res[:, i].tolist()
+                sub['Crop_ID_%d'%(i+1)] = preds['Crop_ID_%d'%(i+1)]
 
             sub.to_csv(os.path.join(results_dir, 'submission.csv'), index = False)
+            logging.info(f'Submission saved at {os.path.join(results_dir, "submission.csv")}')
 
         

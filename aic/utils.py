@@ -1,3 +1,4 @@
+import torch
 import numpy as np
 from tqdm import tqdm
 import torch.nn.functional as F
@@ -21,7 +22,7 @@ def predict(models, dataloader, device, num_classes):
             
             # forward
             with torch.set_grad_enabled(False):
-                outputs = F.softmax(model(imgs, mask), dim=1)    
+                outputs = F.softmax(model(imgs, masks), dim=1)    
                 results.append(outputs.detach().cpu().numpy())
                 
         results = np.concatenate(results, axis=0)
