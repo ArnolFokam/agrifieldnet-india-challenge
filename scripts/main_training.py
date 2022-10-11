@@ -2,6 +2,7 @@
 Credits: https://github.com/radiantearth/crop-type-detection-ICLR-2020/blob/master/solutions/KarimAmer/utils.py
 """
 
+import os
 import copy
 import time
 import pickle
@@ -10,6 +11,7 @@ import argparse
 
 import yaml
 import torch
+import numpy as np
 import pandas as pd
 import torch.nn as nn
 from tqdm import tqdm
@@ -288,24 +290,24 @@ if __name__ == "__main__":
             logging.info(f'Predict output of test data...')
             
             # TODO: load model from path if given or load from previous training or throw error
-            dataset = AgriFieldDataset(args.data_dir,
+            test_test_dataset = AgriFieldDataset(args.data_dir,
                                        bands=args.bands,
                                        download=args.download_data,
                                        save_cache=True,
                                        train=False,
                                        transform=BaselineTransfrom(bands=args.bands, crop_size=args.crop_size))
-            test_loader = DataLoader(dataset, batch_size=1, shuffle=False, num_workers=8)
-            preds = predict(models, test_loader, device, num_classes=dataset.num_classes)
+            test_loader = DataLoader(test_dataset, batch_size=1, shuffle=False, num_workers=8)
+            preds = predict(models, test_loader, device, num_classes=test_dataset.num_classes)
             
-            preds = np.concatenate((dataset.field_ids[..., np.newaxis], preds), axis=-1, dtype=object)
-            preds = pd.DataFrame(preds, columns=['Field_ID', *['Crop_ID_%d'%(i+1) for i in range(dataset.num_classes)]])
+            preds = np.concatenate((test_dataset.field_ids[..., np.newaxis], preds), axis=-1, dtype=object)
+            preds = pd.DataFrame(preds, columns=['Field_ID', *['Crop_ID_%d'%(i+1) for i in range(test_dataset.num_classes)]])
             preds = preds.groupby('Field_ID').mean()
             
             # make a submission
             sub = pd.read_csv(args.sample_submission_path)
-            sub['Field_ID'] = np.unique(dataset.field_ids)
+            sub['Field_ID'] = np.unique(test_dataset.field_ids)
             
-            for i in range(dataset.num_classes):
+            for i in range(test_dataset.num_classes):
                 sub.iloc[:, i + 1] = preds['Crop_ID_%d'%(i+1)].tolist()
 
             sub.to_csv(os.path.join(results_dir, 'submission.csv'), index = False)
