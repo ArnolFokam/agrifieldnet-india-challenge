@@ -25,6 +25,8 @@ MLHUB_API_KEY = os.getenv('MLHUB_API_KEY')
 
 class AgriFieldDataset(torch.utils.data.Dataset):
     
+    num_classes = 13
+    
     mean = {
         'B01': 43.2848714, 
         'B02': 38.65350979, 
@@ -207,7 +209,7 @@ class AgriFieldDataset(torch.utils.data.Dataset):
             logging.info('Data loaded from cached files...')
 
     def __len__(self):
-        return len(self.targets)
+        return len(self.targets)[:100] # TODO: change this
 
     def __getitem__(self, index: str):
         field_id, image, field_mask, target = self.field_ids[index], self.imgs[index], self.field_masks[index], self.targets[index]

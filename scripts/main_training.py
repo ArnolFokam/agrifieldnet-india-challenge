@@ -8,6 +8,7 @@ import logging
 import argparse
 
 import torch
+import pandas as pd
 import torch.nn as nn
 from tqdm import tqdm
 import torch.nn.functional as F
@@ -31,6 +32,8 @@ parser.add_argument('-o','--output_dir', help='save path for trained models', de
 parser.add_argument('-s','--seed', help='seed for experiments', default=42, type=int)
 parser.add_argument('-ts','--test_size', help='test size for cross validation', default=0.13, type=float)
 parser.add_argument('-ks','--splits', help='number of splits for cross validation', default=10, type=int)
+parser.add_argument('-p','--predict', help='predict the classes for the test data in a submission file', default=True, type=bool)
+parser.add_argument('-ssp','--sample_submission_path', help='path to the sample submssion path', default='data/source/Sample_Submission.csv', type=bool)
 
 # data
 parser.add_argument('-d','--data_dir', help='path to data folder', default='data/source', type=str)
@@ -98,7 +101,7 @@ def train_val_single_epoch(model, criterion, optimizer, scheduler, dataloader, d
             
     return running_loss, running_preds, running_targets
 
-def train_model_snapshot(model, criterion, learning_rate, dataloaders, device, num_cycles, num_epochs_per_cycle, kfold_idx):
+def train_model_snapshot(model, criterion, learning_rate, dataloaders, device, num_cycles, num_epochs_per_cycle, num_classes, kfold_idx):
     
     # time training
     since = time.time()
@@ -114,7 +117,7 @@ def train_model_snapshot(model, criterion, learning_rate, dataloaders, device, n
         scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(optimizer, 10*len(dataloaders['train']))
         
         for epoch in range(num_epochs_per_cycle):
-            print('\n')
+            print()
             logging.info('Fold {}: Cycle {}: Epoch {}/{}'.format(kfold_idx + 1, cycle + 1, epoch + 1, num_epochs_per_cycle))
             print('-' * 20)
 
@@ -154,13 +157,13 @@ def train_model_snapshot(model, criterion, learning_rate, dataloaders, device, n
                     best_model_weights = copy.deepcopy(model.state_dict())
         
         # copy the best model to snapshot ensemble
-        models_weights.append(copy.deepcopy(best_model_weights.state_dict()))
+        models_weights.append(copy.deepcopy(best_model_weights))
     
     ensemble_loss = 0.0
     
     #predict on validation using snapshots
     pbar = tqdm(dataloaders['val'])
-    pbar.set_description(f"Validating snapshots on validation data")
+    pbar.set_description(f"Fold {kfold_idx + 1}: Validating snapshots on validation data")
 
     # Iterate over data.
     for field_ids, imgs, masks, targets in pbar:
@@ -171,7 +174,7 @@ def train_model_snapshot(model, criterion, learning_rate, dataloaders, device, n
 
         # forward
         # track history if only in train
-        prob = torch.zeros((inputs.shape[0], 7), dtype = torch.float32).to(device)
+        prob = torch.zeros((imgs.shape[0], num_classes), dtype=torch.float32).to(device)
         for weights in models_weights:
             model.load_state_dict(weights)
             model.eval()
@@ -179,8 +182,8 @@ def train_model_snapshot(model, criterion, learning_rate, dataloaders, device, n
             prob += F.softmax(outputs, dim=1)
         
         prob /= num_cycles
-        loss = F.nll_loss(torch.log(prob), labels)    
-        ensemble_loss += loss.item() * inputs.size(0)
+        loss = F.nll_loss(torch.log(prob), targets)    
+        ensemble_loss += loss.item() * imgs.size(0)
     
     ensemble_loss /= len(dataloaders['val'])
 
@@ -197,7 +200,7 @@ def train_model_snapshot(model, criterion, learning_rate, dataloaders, device, n
     return best_models, ensemble_loss, best_loss
 
 if __name__ == "__main__":
-    result_dir = get_dir(f'{args.output_dir}/{generate_random_string()}')
+    results_dir = get_dir(f'{args.output_dir}/{generate_random_string()}')
     
     logging.info(f'Preparing dataset...')
     
@@ -241,7 +244,7 @@ if __name__ == "__main__":
         
         # model
         logging.info(f'Fold {kfold_idx + 1}: preparing model...')
-        model = CropClassifier(n_classes=len(train_classes_weights.keys()), 
+        model = CropClassifier(n_classes=dataset.num_classes, 
                                n_bands=len(train_ds.dataset.selected_bands), 
                                filters=args.filters,
                                kernel_size=args.kernel_size)
@@ -262,7 +265,25 @@ if __name__ == "__main__":
                                                  device,
                                                  num_cycles=args.cycles,
                                                  num_epochs_per_cycle=args.epochs,
+                                                 num_classes=dataset.num_classes,
                                                  kfold_idx=kfold_idx)
         models_arr.extend(best_models)
+        
+        with open(f'{results_dir}/models.pkl', 'wb') as f:
+            pickle.dump(models_arr, f)
+        
+        if args.predict:
+            # TODO: load model from path if given or load from previous training or throw error
+            test_loader = DataLoader(batch_size=1, shuffle=False, num_workers=8)
+            res = test(models, test_loader, device, num_classes=dataset.num_classes)
+            
+            # make a submission
+            sub = pd.read_csv(args.sample_submission_path)
+            sub['Field_ID'] = test_fields_arr.tolist()
+            
+            for i in range(res.shape[1]):
+                sub['Crop_ID_%d'%(i+1)] = res[:, i].tolist()
+
+            sub.to_csv(os.path.join(results_dir, 'submission.csv'), index = False)
 
         
