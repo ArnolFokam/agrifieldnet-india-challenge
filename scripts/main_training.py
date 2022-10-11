@@ -3,7 +3,6 @@ Credits: https://github.com/radiantearth/crop-type-detection-ICLR-2020/blob/mast
 """
 
 import argparse
-from sklearn.metrics import precision_recall_fscore_support
 
 import torch
 import torch.nn as nn
@@ -12,7 +11,7 @@ import torch.nn.functional as F
 from torch.utils.data import Subset, DataLoader
 from torch.utils.data.sampler import WeightedRandomSampler
 from sklearn.model_selection import StratifiedShuffleSplit
-
+from sklearn.metrics import precision_recall_fscore_support
 
 from aic.model import CropClassifier
 from aic.helpers import seed_everything
@@ -46,6 +45,50 @@ parser.add_argument('-ep','--epochs', help='number of training epochs', default=
 parser.add_argument('-lr','--learning_rate', help='learning rate', default=0.1, type=float)
 
 args = parser.parse_args()
+
+def train_val_single_epoch(model, criterion, optimizer, scheduler, dataloader, phase):
+    if phase == 'train':
+        model.train()  # Set model to training mode
+    else:
+        model.eval()   # Set model to evaluate mode
+
+    running_loss = 0.0
+    running_preds = []
+    running_targets = []
+
+    pbar = tqdm(dataloader)
+    pbar.set_description(f"Phase {phase}")
+
+    # Iterate over data.
+    for field_ids, imgs, masks, targets in pbar:
+        field_ids = field_ids.to(device)
+        imgs = imgs.to(device)
+        masks = masks.to(device)
+        targets = targets.to(device)
+
+
+        # zero the parameter gradients
+        optimizer.zero_grad()
+
+        # forward
+        # track history if only in train
+        with torch.set_grad_enabled(phase == 'train'):
+            outputs = model(imgs, masks)
+            preds = torch.argmax(outputs, 1)
+            loss = criterion(outputs, targets)
+
+            # backward + optimize only if in training phase
+            if phase == 'train':
+                loss.backward()
+                optimizer.step()
+                scheduler.step()
+
+        # statistics
+        running_loss += loss.item()
+        running_targets.extend(targets.cpu().detach().numpy())
+        running_preds.extend(preds.cpu().detach().numpy())
+            
+    return running_loss, running_preds, running_targets
 
 if __name__ == "__main__":
     seed_everything(args.seed)
@@ -102,53 +145,23 @@ if __name__ == "__main__":
 
             # Each epoch has a training and validation phase
             for phase in ['train', 'val']:
-                if phase == 'train':
-                    model.train()  # Set model to training mode
-                else:
-                    model.eval()   # Set model to evaluate mode
-
-                running_loss = 0.0
-                running_preds = []
-                running_targets = []
                 
-                pbar = tqdm(dataloaders[phase])
-                pbar.set_description(f"Phase {phase}")
-
-                # Iterate over data.
-                for field_ids, imgs, masks, targets in pbar:
-                    field_ids = field_ids.to(device)
-                    imgs = imgs.to(device)
-                    masks = masks.to(device)
-                    targets = targets.to(device)
-                    
-
-                    # zero the parameter gradients
-                    optimizer.zero_grad()
-
-                    # forward
-                    # track history if only in train
-                    with torch.set_grad_enabled(phase == 'train'):
-                        outputs = model(imgs, masks)
-                        preds = torch.argmax(outputs, 1)
-                        loss = criterion(outputs, targets)
-                        
-                        # backward + optimize only if in training phase
-                        if phase == 'train':
-                            loss.backward()
-                            optimizer.step()
-                            scheduler.step()
-                    
-                    # statistics
-                    running_loss += loss.item()
-                    running_targets.extend(targets.cpu().detach().numpy())
-                    running_preds.extend(preds.cpu().detach().numpy())
-
+                running_loss, running_preds, running_targets = train_val_single_epoch(model,
+                                                                                      criterion,
+                                                                                      optimizer,
+                                                                                      scheduler,
+                                                                                      dataloaders[phase],
+                                                                                      phase)
+                
                 epoch_loss = running_loss / len(dataloaders[phase])
                 
                 print('{}:::: '
                       'Loss: {:.4f} '
                       'Prec: {:.4f} '
                       'Rec: {:.4f} '
-                      'F1: {:.4f}'.format(phase, epoch_loss, *precision_recall_fscore_support(running_targets, running_preds, average='micro')[:3]))
+                      'F1: {:.4f}'.format(phase, epoch_loss, 
+                                          *precision_recall_fscore_support(running_targets, 
+                                                                           running_preds, 
+                                                                           average='micro')[:3]))
 
         
