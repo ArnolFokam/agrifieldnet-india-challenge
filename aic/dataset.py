@@ -209,11 +209,10 @@ class AgriFieldDataset(torch.utils.data.Dataset):
             logging.info('Data loaded from cached files...')
 
     def __len__(self):
-        return len(self.targets)[:100] # TODO: change this
+        return len(self.field_ids)
 
     def __getitem__(self, index: str):
-        field_id, image, field_mask, target = self.field_ids[index], self.imgs[index], self.field_masks[index], self.targets[index]
-                
+        field_id, image, field_mask, target = self.field_ids[index], self.imgs[index], self.field_masks[index], self.targets[index] if self.train else torch.empty(1)
         if self.transform:
             transformed = self.transform(image=image.astype(np.float64), mask=field_mask.astype(np.float64))
             image = transformed["image"].float()
@@ -221,7 +220,7 @@ class AgriFieldDataset(torch.utils.data.Dataset):
         else:
             image, field_mask = torch.FloatTensor(image), torch.FloatTensor(field_mask)
 
-        return int(field_id), image, field_mask, int(self.class_meta[target]["loss_label"])
+        return int(field_id), image, field_mask, int(self.class_meta[target]["loss_label"]) if self.train else torch.empty(1)
     
     @staticmethod
     def get_class_weights(targets):

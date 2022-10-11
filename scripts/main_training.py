@@ -4,9 +4,11 @@ Credits: https://github.com/radiantearth/crop-type-detection-ICLR-2020/blob/mast
 
 import copy
 import time
+import pickle
 import logging
 import argparse
 
+import yaml
 import torch
 import pandas as pd
 import torch.nn as nn
@@ -17,6 +19,7 @@ from torch.utils.data.sampler import WeightedRandomSampler
 from sklearn.model_selection import StratifiedShuffleSplit
 from sklearn.metrics import precision_recall_fscore_support, accuracy_score
 
+from aic.utils import predict
 from aic.model import CropClassifier
 from aic.dataset import AgriFieldDataset
 from aic.transform import BaselineTransfrom
@@ -33,7 +36,7 @@ parser.add_argument('-s','--seed', help='seed for experiments', default=42, type
 parser.add_argument('-ts','--test_size', help='test size for cross validation', default=0.13, type=float)
 parser.add_argument('-ks','--splits', help='number of splits for cross validation', default=10, type=int)
 parser.add_argument('-p','--predict', help='predict the classes for the test data in a submission file', default=True, type=bool)
-parser.add_argument('-ssp','--sample_submission_path', help='path to the sample submssion path', default='data/source/Sample_Submission.csv', type=bool)
+parser.add_argument('-ssp','--sample_submission_path', help='path to the sample submssion path', default='data/source/Sample_Submission.csv', type=str)
 
 # data
 parser.add_argument('-d','--data_dir', help='path to data folder', default='data/source', type=str)
@@ -158,6 +161,8 @@ def train_model_snapshot(model, criterion, learning_rate, dataloaders, device, n
         
         # copy the best model to snapshot ensemble
         models_weights.append(copy.deepcopy(best_model_weights))
+        
+    print()
     
     ensemble_loss = 0.0
     
@@ -191,6 +196,8 @@ def train_model_snapshot(model, criterion, learning_rate, dataloaders, device, n
     logging.info('Fold {}: Training complete in {:.0f}m {:.0f}s'.format(kfold_idx + 1, time_elapsed // 60, time_elapsed % 60))
     logging.info('Fold {}: Ensemble Loss : {:4f}, Best cycle val Loss: {:4f}'.format(kfold_idx + 1, ensemble_loss, best_loss))
     
+    print()
+    
     # load snapshot model weights and combine them in array
     best_models = []
     for weights in models_weights:
@@ -216,7 +223,7 @@ if __name__ == "__main__":
     kfold = StratifiedShuffleSplit(n_splits=args.splits, test_size=args.test_size, random_state=args.seed)
     
     # arrays of model from cross validation of each snapshots
-    models_arr = []
+    models = []
     
     for kfold_idx, (train_indices, val_indices) in enumerate(kfold.split(dataset.field_ids, dataset.targets)):
         
@@ -267,19 +274,30 @@ if __name__ == "__main__":
                                                  num_epochs_per_cycle=args.epochs,
                                                  num_classes=dataset.num_classes,
                                                  kfold_idx=kfold_idx)
-        models_arr.extend(best_models)
+        models.extend(best_models)
         
+        # save model
         with open(f'{results_dir}/models.pkl', 'wb') as f:
-            pickle.dump(models_arr, f)
+            pickle.dump(models, f)
+            
+        # save hyperparameters
+        with open(f'{results_dir}/hparams.yaml', 'w') as f:
+            yaml.dump(args.__dict__, f)
         
         if args.predict:
             # TODO: load model from path if given or load from previous training or throw error
-            test_loader = DataLoader(batch_size=1, shuffle=False, num_workers=8)
-            res = test(models, test_loader, device, num_classes=dataset.num_classes)
+            dataset = AgriFieldDataset(args.data_dir,
+                                       bands=args.bands,
+                                       download=args.download_data,
+                                       save_cache=True,
+                                       train=False,
+                                       transform=BaselineTransfrom(bands=args.bands, crop_size=args.crop_size))
+            test_loader = DataLoader(dataset, batch_size=1, shuffle=False, num_workers=8)
+            res = predict(models, test_loader, device, num_classes=dataset.num_classes)
             
             # make a submission
             sub = pd.read_csv(args.sample_submission_path)
-            sub['Field_ID'] = test_fields_arr.tolist()
+            sub['Field_ID'] = np.unique(dataset.field_ids)
             
             for i in range(res.shape[1]):
                 sub['Crop_ID_%d'%(i+1)] = res[:, i].tolist()

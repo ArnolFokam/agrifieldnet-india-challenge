@@ -11,14 +11,13 @@ def predict(models, dataloader, device, num_classes):
         model.eval()
         results = []
         
-        pbar = tqdm(dataloaders['val'])
-        pbar.set_description(f"Fold {kfold_idx + 1}: Validating snapshots on validation data")
+        pbar = tqdm(dataloader)
+        pbar.set_description(f"Predicting test data with snapshots")
         
         for field_ids, imgs, masks, _ in pbar:
             field_ids = field_ids.to(device)
             imgs = imgs.to(device)
             masks = masks.to(device)
-            targets = targets.to(device)
             
             # forward
             with torch.set_grad_enabled(False):
