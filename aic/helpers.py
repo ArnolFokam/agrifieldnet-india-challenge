@@ -36,3 +36,13 @@ def get_folder_ids(data_dir, dataset_name, collection):
     
 def generate_random_string(length: int = 10):
     return ''.join(random.choices(string.ascii_uppercase + string.digits, k=length))
+
+def reset_wandb_env():
+    exclude = {
+        "WANDB_PROJECT",
+        "WANDB_ENTITY",
+        "WANDB_API_KEY",
+    }
+    for k, v in os.environ.items():
+        if k.startswith("WANDB_") and k not in exclude:
+            del os.environ[k]
