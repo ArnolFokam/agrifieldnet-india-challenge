@@ -198,7 +198,7 @@ def train_model_snapshot(model,
 
                 logger.log({
                     "cycle": cycle + 1,
-                    "epoch": (max(0, cycle - 1) * num_epochs_per_cycle) + epoch + 1,
+                    "epoch": (cycle * num_epochs_per_cycle) + epoch + 1,
                     f"{phase}-loss": epoch_loss,
                     f"{phase}-accuracy": accuracy,
                     f"{phase}-precision": precision,
@@ -290,7 +290,6 @@ if __name__ == "__main__":
     project_url = sweep_run.get_project_url()
     sweep_group_url = "{}/groups/{}".format(project_url, sweep_id)
     # sweep_run.notes = sweep_group_url
-    sweep_run.save()
     sweep_run_name = sweep_run.name or sweep_run.id or wandb.util.generate_id()
     
     # directory to save models and parameters
@@ -404,7 +403,8 @@ if __name__ == "__main__":
 
     sweep_run.log(dict(
         loss=sum(loss_folds) / len(loss_folds),
-        best_loss=sum(best_loss) / len(best_loss),
+
+        best_loss=sum(best_loss_folds) / len(best_loss_folds),
         accuracy=sum(accuracy_folds) / len(accuracy_folds),
         precision=sum(precision_folds) / len(precision_folds),
         recall=sum(recall_folds) / len(recall_folds),
