@@ -57,7 +57,7 @@ parser.add_argument('-d', '--data_dir',
 parser.add_argument('-dd', '--download_data',
                     help='should we download the data?', default=False, type=bool)
 parser.add_argument('-b', '--batch_size',
-                    help='batch size', default=512, type=int)
+                    help='batch size', default=256, type=int)
 parser.add_argument('-w', '--num_workers',
                     help='number of workers for dataloader', default=8, type=int)
 parser.add_argument('-cs', '--crop_size',
@@ -67,7 +67,7 @@ parser.add_argument('-bd', '--bands', help='bands to use for our training',
 
 # model architeture
 parser.add_argument('-ft', '--filters', help='list of filters for the CNN used',
-                    default=[64, 128, 128], nargs='+', type=int)
+                    default=[64, 64, 64], nargs='+', type=int)
 parser.add_argument('-k', '--kernel_size',
                     help='kernel size for the convolutions', default=3, type=int)
 
@@ -129,7 +129,16 @@ def train_val_single_epoch(model, criterion, optimizer, scheduler, dataloader, d
     return running_loss, running_preds, running_targets
 
 
-def train_model_snapshot(model, criterion, learning_rate, dataloaders, device, num_cycles, num_epochs_per_cycle, num_classes, kfold_idx, logger):
+def train_model_snapshot(model, 
+                         criterion, 
+                         learning_rate, 
+                         dataloaders, 
+                         device, 
+                         num_cycles, 
+                         num_epochs_per_cycle, 
+                         num_classes, 
+                         kfold_idx, 
+                         logger):
 
     # time training
     since = time.time()
@@ -236,7 +245,7 @@ def train_model_snapshot(model, criterion, learning_rate, dataloaders, device, n
         prob /= len(models_weights)
         preds = torch.argmax(prob, 1)
         loss = F.nll_loss(torch.log(prob), targets)
-        
+
         # ensemble metrics
         ensemble_loss += loss.item()  # * imgs.size(0)
         ensemble_targets.extend(targets.cpu().detach().numpy())
@@ -244,14 +253,15 @@ def train_model_snapshot(model, criterion, learning_rate, dataloaders, device, n
 
     ensemble_loss /= len(dataloaders['val'])
     ensemble_accuracy = accuracy_score(ensemble_targets, ensemble_preds)
-    ensemble_precision, ensemble_recall, ensemble_f1 = precision_recall_fscore_support(ensemble_targets, ensemble_preds, average='micro')[:3]
+    ensemble_precision, ensemble_recall, ensemble_f1 = precision_recall_fscore_support(
+        ensemble_targets, ensemble_preds, average='micro')[:3]
 
     time_elapsed = time.time() - since
     logging.info('Fold {}: Training complete in {:.0f}m {:.0f}s'.format(
         kfold_idx + 1, time_elapsed // 60, time_elapsed % 60))
     logging.info('Fold {}: Ensemble Loss : {:4f}, Best cycle val Loss: {:4f}'.format(
         kfold_idx + 1, ensemble_loss, best_loss))
-    
+
     logger.log({
         "ensemble-loss": ensemble_loss,
         "best-loss": best_loss,
@@ -269,12 +279,22 @@ def train_model_snapshot(model, criterion, learning_rate, dataloaders, device, n
         model.load_state_dict(weights)
         best_models.append(model)
 
-    return best_models, ensemble_loss, best_loss
+    return best_models, ensemble_loss, best_loss, ensemble_accuracy, ensemble_precision, ensemble_recall, ensemble_f1
 
 
 if __name__ == "__main__":
-    run_id = wandb.util.generate_id()
-    results_dir = get_dir(f'{args.output_dir}/{run_id}')
+
+    sweep_run = wandb.init(project=f"{args.name}-sweeps")
+    sweep_id = sweep_run.sweep_id or "no_sweep"
+    sweep_url = sweep_run.get_sweep_url()
+    project_url = sweep_run.get_project_url()
+    sweep_group_url = "{}/groups/{}".format(project_url, sweep_id)
+    # sweep_run.notes = sweep_group_url
+    sweep_run.save()
+    sweep_run_name = sweep_run.name or sweep_run.id or wandb.util.generate_id()
+    
+    # directory to save models and parameters
+    results_dir = get_dir(f'{args.output_dir}/{sweep_run_name}')
     
     # save hyperparameters
     with open(f'{results_dir}/hparams.yaml', 'w') as f:
@@ -296,6 +316,12 @@ if __name__ == "__main__":
 
     # arrays of model from cross validation of each snapshots
     models = []
+    loss_folds = []
+    best_loss_folds = []
+    accuracy_folds = []
+    precision_folds = []
+    recall_folds = []
+    f1_folds = []
 
     for kfold_idx, (train_indices, val_indices) in enumerate(kfold.split(dataset.field_ids, dataset.targets)):
 
@@ -346,27 +372,51 @@ if __name__ == "__main__":
 
         # wandb configs
         run = wandb.init(project=args.name,
-                         name=f'{run_id}@kfold_{kfold_idx + 1}',
+                         name=f'{sweep_run_name}@kfold_{kfold_idx + 1}',
+                         group=sweep_id,
                          dir=get_dir(args.output_dir),
+                         job_type=sweep_run_name,
                          config=args,
                          reinit=True)
 
         # get a snapshot of model for this k fold
         logging.info(f'Fold {kfold_idx + 1}: getting model snapshots...')
-        best_models, _, _ = train_model_snapshot(model,
-                                                 criterion,
-                                                 args.learning_rate,
-                                                 dataloaders,
-                                                 device,
-                                                 num_cycles=args.cycles,
-                                                 num_epochs_per_cycle=args.epochs,
-                                                 num_classes=dataset.num_classes,
-                                                 kfold_idx=kfold_idx,
-                                                 logger=run)
+        best_models, loss, best_loss, accuracy, precision, recall, f1 = train_model_snapshot(model,
+                                                                                             criterion,
+                                                                                             args.learning_rate,
+                                                                                             dataloaders,
+                                                                                             device,
+                                                                                             num_cycles=args.cycles,
+                                                                                             num_epochs_per_cycle=args.epochs,
+                                                                                             num_classes=dataset.num_classes,
+                                                                                             kfold_idx=kfold_idx,
+                                                                                             logger=run)
+
+        loss_folds.append(loss)
+        best_loss_folds.append(best_loss)
+        accuracy_folds.append(accuracy)
+        precision_folds.append(precision)
+        recall_folds.append(recall)
+        f1_folds.append(f1)
+        models.extend(best_models)
 
         wandb.join()
 
-        models.extend(best_models)
+    sweep_run.log(dict(
+        loss=sum(loss_folds) / len(loss_folds),
+        best_loss=sum(best_loss) / len(best_loss),
+        accuracy=sum(accuracy_folds) / len(accuracy_folds),
+        precision=sum(precision_folds) / len(precision_folds),
+        recall=sum(recall_folds) / len(recall_folds),
+        f1=sum(f1_folds) / len(f1_folds)
+    ))
+    wandb.join()
+    
+    if sweep_run.sweep_id:
+        print("-" * 40)
+        print("Sweep URL:       ", sweep_url)
+        print("Sweep Group URL: ", sweep_group_url)
+        print("-" * 40)
 
     # save models
     for i, m in enumerate(models):
