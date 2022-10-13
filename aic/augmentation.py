@@ -68,7 +68,7 @@ class RandomFieldAreaCrop:
         cx = x + (w // 2)
         cy = y + (h // 2)
         
-        # get the desired cropped portion of the image
+        # get the desired cropped portion of the image (the portion is a square)
         left = cx - self.crop_size // 2
         right = cx + self.crop_size // 2
         top = cy - self.crop_size // 2
