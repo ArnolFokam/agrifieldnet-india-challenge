@@ -68,7 +68,7 @@ parser.add_argument('-bd', '--bands', help='bands to use for our training',
 
 # model architeture
 parser.add_argument('-ft', '--filters', help='list of filters for the CNN used',
-                    default=[64, 64, 64], nargs='+', type=int)
+                    default="64 64 64", type=str)
 parser.add_argument('-k', '--kernel_size',
                     help='kernel size for the convolutions', default=3, type=int)
 
@@ -304,8 +304,9 @@ def main():
     seed_everything(args.seed)
     device = torch.device('cuda:0' if torch.cuda.is_available() else 'cpu')
     
-    # get bands from string
+    # get bands and filters from string
     args.bands = args.bands.split(' ')
+    args.filters = [ int(f) for f in args.filters.split(' ')]
 
     dataset = AgriFieldDataset(args.data_dir,
                                bands=args.bands,
