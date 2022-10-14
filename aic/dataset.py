@@ -288,7 +288,7 @@ class AgriFieldDataset(torch.utils.data.Dataset):
         """
 
         return { k: { 
-            "name": self.scrops[k], 
+            "name": self.crops[k], 
             "loss_label": v,
         } for k, v in zip(self.crops.keys(), range(len(self.crops.keys())))}
 
