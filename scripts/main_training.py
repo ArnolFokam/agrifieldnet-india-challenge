@@ -9,6 +9,7 @@ import pickle
 import logging
 import argparse
 import datetime
+from argparse import Namespace
 
 import yaml
 import torch
@@ -291,6 +292,9 @@ def train_model_snapshot(model,
 
 def main():
     sweep_run_name = f"{datetime.datetime.now().strftime(f'%H-%M-%ST%d-%m-%Y')}_{generate_random_string(5)}"
+    
+     # combine wwandb config with args to form old args (sweep)
+    args = Namespace(**(vars(args) | wandb.config))
     
     # directory to save models and parameters
     results_dir = get_dir(f'{args.output_dir}/{sweep_run_name}')
