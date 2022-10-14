@@ -93,11 +93,11 @@ class AgriFieldDataset(torch.utils.data.Dataset):
     def __init__(
         self,
         root_dir: str, 
+        bands: List[str],
         train: bool = True,
         download: bool = False,
         save_cache: bool = False,
-        transform: Optional[Callable] = None,
-        bands: Optional[List[str]] = ['B01', 'B02', 'B03', 'B04','B05','B06','B07','B08','B8A', 'B09', 'B11', 'B12']):
+        transform: Optional[Callable] = None,):
 
         self.selected_bands = bands
         self.train = train

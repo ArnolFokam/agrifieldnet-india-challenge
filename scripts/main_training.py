@@ -309,7 +309,7 @@ def main():
     args.filters = [ int(f) for f in args.filters.split(' ')]
 
     dataset = AgriFieldDataset(args.data_dir,
-                               bands=args.bands,
+                               args.bands,
                                download=args.download_data,
                                save_cache=True,
                                train=True,
