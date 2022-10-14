@@ -8,6 +8,7 @@ import time
 import pickle
 import logging
 import argparse
+import datetime
 
 import yaml
 import torch
@@ -26,7 +27,7 @@ from aic.utils import predict
 from aic.model import CropClassifier
 from aic.dataset import AgriFieldDataset
 from aic.transform import BaselineTrainTransform
-from aic.helpers import seed_everything, get_dir, reset_wandb_env
+from aic.helpers import seed_everything, get_dir, reset_wandb_env, generate_random_string
 
 
 parser = argparse.ArgumentParser(description='Ensemble training script')
@@ -78,6 +79,12 @@ parser.add_argument('-lr', '--learning_rate',
                     help='learning rate', default=0.1, type=float)
 parser.add_argument(
     '-c', '--cycles', help='trainin cycle for the model snapshot', default=5, type=int)
+
+parser.add_argument(
+    '-sp', '--sweep_path', help='path to sweep configuration if we wish to start a sweep', default=None, type=str)
+
+parser.add_argument(
+    '-sc', '--sweep_count', help="number of runs to makefor the sweep", default=None, type=int)
 
 args = parser.parse_args()
 
@@ -282,15 +289,12 @@ def train_model_snapshot(model,
     return best_models, ensemble_loss, best_loss, ensemble_accuracy, ensemble_precision, ensemble_recall, ensemble_f1
 
 
-if __name__ == "__main__":
-
-    sweep_run = wandb.init(project=f"{args.name}-sweeps")
-    sweep_id = sweep_run.sweep_id or "no_sweep"
-    sweep_url = sweep_run.get_sweep_url()
-    project_url = sweep_run.get_project_url()
-    sweep_group_url = "{}/groups/{}".format(project_url, sweep_id)
-    # sweep_run.notes = sweep_group_url
-    sweep_run_name = sweep_run.name or sweep_run.id or wandb.util.generate_id()
+def main():
+    sweep_run = wandb.init(project=f"{args.name}-sweeps", 
+                            config=args, 
+                           name=f"{datetime.datetime.now().strftime(f'%H-%M-%ST%d-%m-%Y')}_{generate_random_string(5)}",
+                           dir=get_dir(f'{args.output_dir}/sweeps'))
+    sweep_run_name = sweep_run.name
     
     # directory to save models and parameters
     results_dir = get_dir(f'{args.output_dir}/{sweep_run_name}')
@@ -303,6 +307,8 @@ if __name__ == "__main__":
 
     seed_everything(args.seed)
     device = torch.device('cuda:0' if torch.cuda.is_available() else 'cpu')
+    
+    # get bands from string
 
     dataset = AgriFieldDataset(args.data_dir,
                                bands=args.bands,
@@ -371,10 +377,9 @@ if __name__ == "__main__":
 
         # wandb configs
         run = wandb.init(project=args.name,
-                         name=f'{sweep_run_name}@kfold_{kfold_idx + 1}',
-                         group=sweep_id,
+                         name=f'kfold_{kfold_idx + 1}',
+                         group=sweep_run_name,
                          dir=get_dir(args.output_dir),
-                         job_type=sweep_run_name,
                          config=args,
                          reinit=True)
 
@@ -403,7 +408,6 @@ if __name__ == "__main__":
 
     sweep_run.log(dict(
         loss=sum(loss_folds) / len(loss_folds),
-
         best_loss=sum(best_loss_folds) / len(best_loss_folds),
         accuracy=sum(accuracy_folds) / len(accuracy_folds),
         precision=sum(precision_folds) / len(precision_folds),
@@ -411,12 +415,6 @@ if __name__ == "__main__":
         f1=sum(f1_folds) / len(f1_folds)
     ))
     wandb.join()
-    
-    if sweep_run.sweep_id:
-        print("-" * 40)
-        print("Sweep URL:       ", sweep_url)
-        print("Sweep Group URL: ", sweep_group_url)
-        print("-" * 40)
 
     # save models
     for i, m in enumerate(models):
@@ -453,3 +451,24 @@ if __name__ == "__main__":
             results_dir, 'submission.csv'), index=False)
         logging.info(
             f'Submission saved at {os.path.join(results_dir, "submission.csv")}')
+
+
+if __name__ == "__main__":
+    if args.sweep_path:
+        
+        import yaml
+        with open(args.sweep_path, "r") as stream:
+            try:
+                print(yaml.safe_load(stream))
+                sweep_id = wandb.sweep(sweep=sweep_configuration, project=args.name)
+                wandb.agent(sweep_id, function=main, project=args.name, count=args.sweep_count)
+                
+            except yaml.YAMLError as exc:
+                logging.error(f"Couldn't load the sweep file. Make sure {args.sweep_path} is a valid path")
+                logging.warn("doing a normal run")
+                main()
+    else:
+        main()
+                
+        
+        
