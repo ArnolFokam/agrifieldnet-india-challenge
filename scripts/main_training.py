@@ -87,7 +87,7 @@ parser.add_argument(
 parser.add_argument(
     '-sc', '--sweep_count', help="number of runs to makefor the sweep", default=None, type=int)
 
-args = parser.parse_args()
+initial_args = parser.parse_args()
 
 logging.basicConfig(level=logging.INFO,
                     format='%(asctime)s - %(levelname)s: %(message)s', datefmt='%H:%M:%S')
@@ -293,8 +293,10 @@ def train_model_snapshot(model,
 def main():
     sweep_run_name = f"{datetime.datetime.now().strftime(f'%H-%M-%ST%d-%m-%Y')}_{generate_random_string(5)}"
     
-     # combine wwandb config with args to form old args (sweep)
-    args = Namespace(**(vars(args) | wandb.config))
+    # combine wwandb config with args to form old args (sweep)
+    wandb.init() # dumb inint ot get configs
+    args = Namespace(**(vars(initial_args)| dict(wandb.config)))
+    wandb.join()
     
     # directory to save models and parameters
     results_dir = get_dir(f'{args.output_dir}/{sweep_run_name}')
@@ -461,17 +463,17 @@ def main():
 
 
 if __name__ == "__main__":
-    if args.sweep_path:
+    if initial_args.sweep_path:
         
         import yaml
-        with open(args.sweep_path, "r") as stream:
+        with open(initial_args.sweep_path, "r") as stream:
             try:
                 sweep_configuration = yaml.safe_load(stream)
-                sweep_id = wandb.sweep(sweep=sweep_configuration, project=args.name)
-                wandb.agent(sweep_id, function=main, project=args.name, count=args.sweep_count)
+                sweep_id = wandb.sweep(sweep=sweep_configuration, project=initial_args.name)
+                wandb.agent(sweep_id, function=main, project=initial_args.name, count=initial_args.sweep_count)
                 
             except yaml.YAMLError as exc:
-                logging.error(f"Couldn't load the sweep file. Make sure {args.sweep_path} is a valid path")
+                logging.error(f"Couldn't load the sweep file. Make sure {initial_args.sweep_path} is a valid path")
                 logging.warn("doing a normal run")
                 main()
     else:
