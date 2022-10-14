@@ -64,7 +64,7 @@ parser.add_argument('-w', '--num_workers',
 parser.add_argument('-cs', '--crop_size',
                     help='size of the crop image after transform', default=32, type=int)
 parser.add_argument('-bd', '--bands', help='bands to use for our training',
-                    default=['B01', 'B02', 'B03', 'B04', 'B05', 'B06', 'B07', 'B08', 'B8A', 'B09', 'B11', 'B12'], nargs='+', type=str)
+                    default='B01 B02 B03 B04 B05 B06 B07 B08 B8A B09 B11 B12', type=str)
 
 # model architeture
 parser.add_argument('-ft', '--filters', help='list of filters for the CNN used',
@@ -290,11 +290,7 @@ def train_model_snapshot(model,
 
 
 def main():
-    sweep_run = wandb.init(project=f"{args.name}-sweeps", 
-                            config=args, 
-                           name=f"{datetime.datetime.now().strftime(f'%H-%M-%ST%d-%m-%Y')}_{generate_random_string(5)}",
-                           dir=get_dir(f'{args.output_dir}/sweeps'))
-    sweep_run_name = sweep_run.name
+    sweep_run_name = f"{datetime.datetime.now().strftime(f'%H-%M-%ST%d-%m-%Y')}_{generate_random_string(5)}"
     
     # directory to save models and parameters
     results_dir = get_dir(f'{args.output_dir}/{sweep_run_name}')
@@ -309,6 +305,7 @@ def main():
     device = torch.device('cuda:0' if torch.cuda.is_available() else 'cpu')
     
     # get bands from string
+    args.bands = args.bands.split(' ')
 
     dataset = AgriFieldDataset(args.data_dir,
                                bands=args.bands,
@@ -405,6 +402,11 @@ def main():
         models.extend(best_models)
 
         wandb.join()
+        
+    sweep_run = wandb.init(project=f"{args.name}-sweeps", 
+                           name=sweep_run_name,
+                           config=args,
+                           dir=get_dir(f'{args.output_dir}/sweeps'))
 
     sweep_run.log(dict(
         loss=sum(loss_folds) / len(loss_folds),
@@ -418,7 +420,7 @@ def main():
 
     # save models
     for i, m in enumerate(models):
-        torch.save(m.state_dict(), f"model_{i}.pth")
+        torch.save(m.state_dict(), f"{results_dir}/model_{i}.pth")
 
     if args.predict:
         logging.info(f'Predict output of test data...')
@@ -459,7 +461,7 @@ if __name__ == "__main__":
         import yaml
         with open(args.sweep_path, "r") as stream:
             try:
-                print(yaml.safe_load(stream))
+                sweep_configuration = yaml.safe_load(stream)
                 sweep_id = wandb.sweep(sweep=sweep_configuration, project=args.name)
                 wandb.agent(sweep_id, function=main, project=args.name, count=args.sweep_count)
                 
