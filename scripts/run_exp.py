@@ -23,7 +23,7 @@ scripts = {
 
 def main(
         experiment: str,
-        yaml_sweep_file: str,
+        yaml_sweep_file: str = None,
         exclude: Union[str, List[str]] = None,
         include: Union[str, List[str]] = None,
         partition_name: str = 'stampede',
@@ -64,7 +64,7 @@ cd {ROOT_DIR}
 
     directory = get_dir(f"{ROOT_DIR}/{SLURM_DIR}", experiment)
     suffix = "_slurm" if use_slurm else ""
-    cmd = f"python scripts/{scripts[experiment]}.py --sweep_path {yaml_sweep_file} --sweep_count {max_runs}"
+    cmd = f"python scripts/{scripts[experiment]}.py {f'--sweep_path {yaml_sweep_file} --sweep_count {max_runs}' if (yaml_sweep_file and max_runs) else ''} "
     fpath = os.path.join(directory, f'{idx}{suffix}.bash')
     with open(fpath, 'w+') as f:
         f.write(get_bash_text(cmd))
