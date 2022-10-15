@@ -29,6 +29,7 @@ def main(
         partition_name: str = 'stampede',
         max_runs: int = 20,
         use_slurm: bool = True,
+        **kwargs
 ):
     """This creates a slurm file and runs it
         Args:
@@ -64,7 +65,10 @@ cd {ROOT_DIR}
 
     directory = get_dir(f"{ROOT_DIR}/{SLURM_DIR}", experiment)
     suffix = "_slurm" if use_slurm else ""
-    cmd = f"python scripts/{scripts[experiment]}.py {f'--sweep_path {yaml_sweep_file} --sweep_count {max_runs}' if (yaml_sweep_file and max_runs) else ''} "
+    
+    args = [f"--{key}={value}" for key, value in kwargs.items()]
+    cmd = f"python scripts/{scripts[experiment]}.py {' '.join(args)}"
+    
     fpath = os.path.join(directory, f'{idx}{suffix}.bash')
     with open(fpath, 'w+') as f:
         f.write(get_bash_text(cmd))
