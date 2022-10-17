@@ -66,6 +66,8 @@ parser.add_argument('-cs', '--crop_size',
                     help='size of the crop image after transform', default=32, type=int)
 parser.add_argument('-bd', '--bands', help='bands to use for our training',
                     default='B01 B02 B03 B04 B05 B06 B07 B08 B8A B09 B11 B12', type=str)
+parser.add_argument('-vi', '--vegetative_indeces', help='vegetative indeces to use',
+                    default='NDVI NDWI_GREEN NDWI_BLUE', type=str)
 
 # model architeture
 parser.add_argument('-ft', '--filters', help='list of filters for the CNN used',
@@ -312,10 +314,12 @@ def main():
     
     # get bands and filters from string
     args.bands = args.bands.split(' ')
+    args.vegetative_indeces = args.vegetative_indeces.split(' ')
     args.filters = [ int(f) for f in args.filters.split(' ')]
 
     dataset = AgriFieldDataset(args.data_dir,
                                args.bands,
+                               vegetative_indeces=args.vegetative_indeces,
                                download=args.download_data,
                                save_cache=True,
                                train=True,
