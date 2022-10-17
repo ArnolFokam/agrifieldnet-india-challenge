@@ -272,7 +272,7 @@ def train_model_snapshot(model,
 
     logger.log({
         "ensemble-loss": ensemble_loss,
-        "best-loss": best_loss,
+        "ensemble-best-cycle-loss": best_loss,
         "ensemble-accuracy": ensemble_accuracy,
         "ensemble-precision": ensemble_precision,
         "ensemble-recall": ensemble_recall,
@@ -415,14 +415,14 @@ def main():
                            config=args,
                            dir=get_dir(f'{args.output_dir}/sweeps'))
 
-    sweep_run.log(dict(
-        loss=sum(loss_folds) / len(loss_folds),
-        best_loss=sum(best_loss_folds) / len(best_loss_folds),
-        accuracy=sum(accuracy_folds) / len(accuracy_folds),
-        precision=sum(precision_folds) / len(precision_folds),
-        recall=sum(recall_folds) / len(recall_folds),
-        f1=sum(f1_folds) / len(f1_folds)
-    ))
+    sweep_run.log({
+        "loss": sum(loss_folds) / len(loss_folds),
+        "best-loss": sum(best_loss_folds) / len(best_loss_folds),
+        "accuracy": sum(accuracy_folds) / len(accuracy_folds),
+        "precision": sum(precision_folds) / len(precision_folds),
+        "recall": sum(recall_folds) / len(recall_folds),
+        "f1": sum(f1_folds) / len(f1_folds)
+    })
     wandb.join()
 
     # save models
