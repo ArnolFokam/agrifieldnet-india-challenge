@@ -296,7 +296,7 @@ def main():
     sweep_run_name = f"{datetime.datetime.now().strftime(f'%H-%M-%ST%d-%m-%Y')}_{generate_random_string(5)}"
     
     # directory to save models and parameters
-    results_dir = get_dir(f'{args.output_dir}/{sweep_run_name}')
+    results_dir = get_dir(f'{initial_args.output_dir}/{sweep_run_name}')
     
     # combine wwandb config with args to form old args (sweep)
     wandb.init(dir=results_dir) # dumb init to get configs
