@@ -323,9 +323,9 @@ def main():
                                download=args.download_data,
                                save_cache=True,
                                train=True,
-                               transform=BaselineTrainTransform(bands=args.bands, crop_size=args.crop_size))
-    print(f"{args.vegetative_indeces[-1]}", np.array(dataset.imgs)[:, :, :, -1].mean())
-    print(f"{args.vegetative_indeces[-1]}", np.array(dataset.imgs)[:, :, :, -1].std())
+                               transform=BaselineTrainTransform(bands=args.bands, 
+                                                                vegetative_indeces=args.vegetative_indeces, 
+                                                                crop_size=args.crop_size))
     kfold = StratifiedShuffleSplit(
         n_splits=args.splits, test_size=args.test_size, random_state=args.seed)
 

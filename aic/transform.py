@@ -12,9 +12,10 @@ from aic.dataset import AgriFieldDataset
 
 
 class BaselineTrainTransform:
-    def __init__(self, bands: List[str], crop_size: int = 32) -> None:
+    def __init__(self, bands: List[str], vegetative_indeces: List[str], crop_size: int = 32) -> None:
         self.crop_size = crop_size
         self.bands = bands
+        self.vegetative_indeces = vegetative_indeces
         
         # transform for RGB bands
         self.rgb_transform = A.Compose([
@@ -26,8 +27,8 @@ class BaselineTrainTransform:
         
         # transform that change the value of a voxel in the spectral bands
         self.voxel_value_transform = A.Compose([
-            NormalizeBands(mean=[AgriFieldDataset.mean[band] for band in self.bands], 
-                           std=[AgriFieldDataset.std[band] for band in self.bands]),
+            NormalizeBands(mean=[AgriFieldDataset.mean[band] for band in self.bands] + [AgriFieldDataset.mean[band] for band in self.vegetative_indeces], 
+                           std=[AgriFieldDataset.std[band] for band in self.bands] + [AgriFieldDataset.mean[band] for band in self.vegetative_indeces]),
             ReduceSkewness(),
         ])
 
