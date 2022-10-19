@@ -239,13 +239,11 @@ class AgriFieldDataset(torch.utils.data.Dataset):
         field_id, image, field_mask, target = self.field_ids[index], self.imgs[
             index], self.field_masks[index], self.targets[index] if self.train else torch.empty(1)
         if self.transform:
-            transformed = self.transform(image=image.astype(
-                np.float64), mask=field_mask.astype(np.float64))
+            transformed = self.transform(image=image.astype(np.float32), mask=field_mask.astype(np.float32))
             image = transformed["image"].float()
             field_mask = transformed["mask"].float()
         else:
-            image, field_mask = torch.FloatTensor(
-                image), torch.FloatTensor(field_mask)
+            image, field_mask = torch.FloatTensor(image), torch.FloatTensor(field_mask)
 
         return int(field_id), image, field_mask, int(self.class_meta[target]["loss_label"]) if self.train else torch.empty(1)
 
