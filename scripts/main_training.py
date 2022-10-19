@@ -440,10 +440,11 @@ def main():
 
         test_dataset = AgriFieldDataset(args.data_dir,
                                         bands=args.bands,
+                                        vegetative_indeces=args.vegetative_indeces,
                                         download=args.download_data,
                                         save_cache=True,
                                         train=False,
-                                        transform=BaselineTrainTransform(bands=args.bands, crop_size=args.crop_size))
+                                        transform=BaselineTrainTransform(bands=args.bands, vegetative_indeces=args.vegetative_indeces , crop_size=args.crop_size))
         test_loader = DataLoader(
             test_dataset, batch_size=1, shuffle=False, num_workers=8)
         preds = predict(models, test_loader, device,
