@@ -107,7 +107,7 @@ class AgriFieldDataset(torch.utils.data.Dataset):
             transform: Optional[Callable] = None,):
 
         self.selected_bands = bands
-        self.vegetative_indces = vegetative_indeces
+        self.vegetative_indeces = vegetative_indeces
         self.train = train
         self.root_dir = root_dir
         self.transform = transform
@@ -120,7 +120,7 @@ class AgriFieldDataset(torch.utils.data.Dataset):
             self.__download_data(root_dir, dataset_name)
 
         self.save_cache_dir = get_dir(
-            f"{self.root_dir}/cache_{'_'.join(self.selected_bands)}_{'_'.join(self.vegetative_indces)}")
+            f"{self.root_dir}/cache_{'_'.join(self.selected_bands)}_{'_'.join(self.vegetative_indeces)}")
 
         try:
             logging.info('Loading data from cache...')
@@ -167,7 +167,7 @@ class AgriFieldDataset(torch.utils.data.Dataset):
                     f'{self.root_dir}/{dataset_name}/{source_collection}/{source_collection}_{fidx}/{band}.tif') for band in self.selected_bands]
                 bands_array = [np.expand_dims(band.read(1), axis=0) for band in bands_src]
                 bands = np.vstack(bands_array).transpose(1, 2, 0)  # convert to H x W x C
-                bands = self.__add_spectral_indices(bands, self.vegetative_indces)
+                bands = self.__add_spectral_indices(bands, self.vegetative_indeces)
                 
 
                 if self.train:
