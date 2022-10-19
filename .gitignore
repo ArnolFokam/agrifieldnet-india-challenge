@@ -144,3 +144,4 @@ lightning_logs
 wandb/
 results/
 exps/
+*_private*
