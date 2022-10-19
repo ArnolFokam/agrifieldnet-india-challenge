@@ -8,7 +8,7 @@ from aic.transform import BaselineTrainTransform
 from aic.dataset import AgriFieldDataset
 
 class CropClassifier(nn.Module):
-    def __init__(self, n_classes: int, n_bands: int, kernel_size: int = 3, filters: List[int] = [32]) -> None:
+    def __init__(self, n_classes: int, n_channels: int, kernel_size: int = 3, filters: List[int] = [32]) -> None:
         super().__init__()
         
         assert len(filters) > 0, "[Input error] the model must have at least one filter layer"

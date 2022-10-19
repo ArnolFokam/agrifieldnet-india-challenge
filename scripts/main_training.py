@@ -369,7 +369,7 @@ def main():
         # model
         logging.info(f'Fold {kfold_idx + 1}: preparing model...')
         model = CropClassifier(n_classes=dataset.num_classes,
-                               n_bands=len(train_ds.dataset.selected_bands),
+                               n_channels=len(train_ds.dataset.selected_bands) + len(train_ds.dataset.vegetative_indeces),
                                filters=args.filters,
                                kernel_size=args.kernel_size)
         model = model.to(device)
