@@ -117,7 +117,7 @@ class AgriFieldDataset(torch.utils.data.Dataset):
         label_collection = f'{dataset_name}_labels_{"train" if self.train else "test"}'
 
         if download:
-            self.__download_data(root_dir, dataset_name, bands)
+            self.__download_data(root_dir, dataset_name)
 
         self.save_cache_dir = get_dir(
             f"{self.root_dir}/cache_{'_'.join(self.selected_bands)}_{'_'.join(self.vegetative_indces)}")
@@ -272,8 +272,7 @@ class AgriFieldDataset(torch.utils.data.Dataset):
     def __download_data(
             self,
             download_dir: str,
-            dataset_name: str,
-            bands: Optional[List[str]] = ['B01', 'B02', 'B03', 'B04', 'B05', 'B06', 'B07', 'B08', 'B8A', 'B09', 'B11', 'B12']):
+            dataset_name: str,):
 
         if not MLHUB_API_KEY:
             logging.warning(
@@ -283,6 +282,9 @@ class AgriFieldDataset(torch.utils.data.Dataset):
 
         # fetch informatin about the dataset
         dataset = Dataset.fetch(dataset_name)
+        
+        # download all bands
+        bands: List[str] = ['B01', 'B02', 'B03', 'B04', 'B05', 'B06', 'B07', 'B08', 'B8A', 'B09', 'B11', 'B12']
 
         # handle filters
         assets = ['field_ids', 'raster_labels']
