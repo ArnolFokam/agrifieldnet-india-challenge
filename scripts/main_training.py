@@ -301,7 +301,7 @@ def main():
     results_dir = get_dir(f'{initial_args.output_dir}/{sweep_run_name}')
     
     # combine wwandb config with args to form old args (sweep)
-    wandb.init(dir=results_dir) # dumb init to get configs
+    wandb.init(dir=get_dir(args.output_dir)) # dumb init to get configs
     args = Namespace(**(vars(initial_args)| dict(wandb.config)))
     wandb.join()
     
@@ -419,7 +419,7 @@ def main():
     sweep_run = wandb.init(project=f"{args.name}-sweeps", 
                            name=sweep_run_name,
                            config=args,
-                           dir=get_dir(f'{args.output_dir}/sweeps'))
+                           dir=get_dir(args.output_dir))
 
     sweep_run.log({
         "loss": sum(loss_folds) / len(loss_folds),
