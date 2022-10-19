@@ -347,8 +347,6 @@ def main():
 
         train_ds = Subset(dataset, train_indices)
         val_ds = Subset(dataset, val_indices)
-        val_ds.dataset.transform = BaselineTrainTransform(
-            bands=args.bands, crop_size=args.crop_size)
 
         train_classes_weights = AgriFieldDataset.get_class_weights(
             train_ds.dataset.targets[train_ds.indices])
