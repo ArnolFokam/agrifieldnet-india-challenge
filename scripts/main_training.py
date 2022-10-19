@@ -301,7 +301,7 @@ def main():
     results_dir = get_dir(f'{initial_args.output_dir}/{sweep_run_name}')
     
     # combine wwandb config with args to form old args (sweep)
-    wandb.init(dir=get_dir(args.output_dir)) # dumb init to get configs
+    wandb.init(dir=get_dir(initial_args.output_dir)) # dumb init to get configs
     args = Namespace(**(vars(initial_args)| dict(wandb.config)))
     wandb.join()
     

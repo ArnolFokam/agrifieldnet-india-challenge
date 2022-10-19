@@ -145,4 +145,4 @@ wandb/
 results/
 exps/
 *_private*
-slurms/*
+*/slurms/*
