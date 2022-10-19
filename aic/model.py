@@ -13,7 +13,7 @@ class CropClassifier(nn.Module):
         
         assert len(filters) > 0, "[Input error] the model must have at least one filter layer"
         
-        self.conv_layers = nn.ModuleList([self.conv_layer(n_bands, filters[0], kernel_size)])
+        self.conv_layers = nn.ModuleList([self.conv_layer(n_channels, filters[0], kernel_size)])
         
         for i in range(len(filters) - 1):
             self.conv_layers.append(self.conv_layer(filters[i], filters[i + 1], kernel_size))
@@ -73,6 +73,7 @@ class CropClassifier(nn.Module):
         
 
 if __name__ == '__main__':
+    # TODO: should include support for vegetative indeces
     bands = ['B01', 'B02', 'B03', 'B04','B05','B06','B07','B08','B8A', 'B09', 'B11', 'B12']
     ds = AgriFieldDataset('data/source',
                           bands=bands,
