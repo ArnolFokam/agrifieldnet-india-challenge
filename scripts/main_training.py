@@ -324,6 +324,8 @@ def main():
                                save_cache=True,
                                train=True,
                                transform=BaselineTrainTransform(bands=args.bands, crop_size=args.crop_size))
+    print(f"{args.vegetative_indeces[-1]}", dataset.imgs[:, :, :, -1].mean())
+    print(f"{args.vegetative_indeces[-1]}", dataset.imgs[:, :, :, -1].std())
     kfold = StratifiedShuffleSplit(
         n_splits=args.splits, test_size=args.test_size, random_state=args.seed)
 

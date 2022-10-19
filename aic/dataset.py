@@ -198,10 +198,10 @@ class AgriFieldDataset(torch.utils.data.Dataset):
 
                         # append label
                         self.targets.append(label)
-
-            self.imgs = np.array(self.imgs)
+ 
+            # self.imgs = np.array(self.imgs) # too heavy to load
+            # self.field_masks = np.array(self.field_masks) # too heavy to load
             self.field_ids = np.array(self.field_ids)
-            self.field_masks = np.array(self.field_masks)
             self.targets = np.array(self.targets)
 
             # normalize data accross dataset
