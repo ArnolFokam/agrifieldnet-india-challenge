@@ -45,7 +45,9 @@ parser.add_argument(
 parser.add_argument(
     '-s', '--seed', help='seed for experiments', default=42, type=int)
 parser.add_argument('-ts', '--test_size',
-                    help='test size for cross validation', default=0.20, type=float)
+                    help='test size for cross validation', default=0.17, type=float)
+parser.add_argument('-dv', '--device',
+                    help='cuda device to use', default=0, type=int)
 parser.add_argument(
     '-ks', '--splits', help='number of splits for cross validation', default=10, type=int)
 parser.add_argument(
@@ -310,7 +312,7 @@ def main():
     logging.info(f'Preparing dataset...')
 
     seed_everything(args.seed)
-    device = torch.device('cuda:0' if torch.cuda.is_available() else 'cpu')
+    device = torch.device(f'cuda:{args.device}' if torch.cuda.is_available() else 'cpu')
     
     # get bands and filters from string
     args.bands = args.bands.split(' ')
