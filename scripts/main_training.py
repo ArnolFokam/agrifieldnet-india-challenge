@@ -25,7 +25,7 @@ from sklearn.model_selection import StratifiedShuffleSplit
 from sklearn.metrics import precision_recall_fscore_support, accuracy_score
 
 from aic.utils import predict
-from aic.model import CropClassifier
+from aic.model import CropClassifier, PretrainedClassifer
 from aic.dataset import AgriFieldDataset
 from aic.transform import BaselineTrainTransform
 from aic.helpers import seed_everything, get_dir, reset_wandb_env, generate_random_string
@@ -141,15 +141,15 @@ def train_val_single_epoch(model, criterion, optimizer, scheduler, dataloader, d
     return running_loss, running_preds, running_targets
 
 
-def train_model_snapshot(model, 
-                         criterion, 
-                         learning_rate, 
-                         dataloaders, 
-                         device, 
-                         num_cycles, 
-                         num_epochs_per_cycle, 
-                         num_classes, 
-                         kfold_idx, 
+def train_model_snapshot(model,
+                         criterion,
+                         learning_rate,
+                         dataloaders,
+                         device,
+                         num_cycles,
+                         num_epochs_per_cycle,
+                         num_classes,
+                         kfold_idx,
                          logger):
 
     # time training
@@ -296,15 +296,16 @@ def train_model_snapshot(model,
 
 def main():
     sweep_run_name = f"{datetime.datetime.now().strftime(f'%H-%M-%ST%d-%m-%Y')}_{generate_random_string(5)}"
-    
+
     # directory to save models and parameters
     results_dir = get_dir(f'{initial_args.output_dir}/{sweep_run_name}')
-    
+
     # combine wwandb config with args to form old args (sweep)
-    wandb.init(dir=get_dir(initial_args.output_dir)) # dumb init to get configs
-    args = Namespace(**(vars(initial_args)| dict(wandb.config)))
+    # dumb init to get configs
+    wandb.init(dir=get_dir(initial_args.output_dir))
+    args = Namespace(**(vars(initial_args) | dict(wandb.config)))
     wandb.join()
-    
+
     # save hyperparameters
     with open(f'{results_dir}/hparams.yaml', 'w') as f:
         yaml.dump(args.__dict__, f)
@@ -312,12 +313,13 @@ def main():
     logging.info(f'Preparing dataset...')
 
     seed_everything(args.seed)
-    device = torch.device(f'cuda:{args.device}' if torch.cuda.is_available() else 'cpu')
-    
+    device = torch.device(
+        f'cuda:{args.device}' if torch.cuda.is_available() else 'cpu')
+
     # get bands and filters from string
     args.bands = args.bands.split(' ')
     args.vegetative_indeces = args.vegetative_indeces.split(' ')
-    args.filters = [ int(f) for f in args.filters.split(' ')]
+    args.filters = [int(f) for f in args.filters.split(' ')]
 
     dataset = AgriFieldDataset(args.data_dir,
                                args.bands,
@@ -325,8 +327,8 @@ def main():
                                download=args.download_data,
                                save_cache=True,
                                train=True,
-                               transform=BaselineTrainTransform(bands=args.bands, 
-                                                                vegetative_indeces=args.vegetative_indeces, 
+                               transform=BaselineTrainTransform(bands=args.bands,
+                                                                vegetative_indeces=args.vegetative_indeces,
                                                                 crop_size=args.crop_size))
     kfold = StratifiedShuffleSplit(
         n_splits=args.splits, test_size=args.test_size, random_state=args.seed)
@@ -370,10 +372,11 @@ def main():
 
         # model
         logging.info(f'Fold {kfold_idx + 1}: preparing model...')
-        model = CropClassifier(n_classes=dataset.num_classes,
-                               n_channels=len(train_ds.dataset.selected_bands) + len(train_ds.dataset.vegetative_indeces),
-                               filters=args.filters,
-                               kernel_size=args.kernel_size)
+        model = PretrainedClassifer(n_classes=dataset.num_classes,
+                                    n_channels=len(
+                                        train_ds.dataset.selected_bands) + len(train_ds.dataset.vegetative_indeces),
+                                    filters=args.filters,
+                                    kernel_size=args.kernel_size)
         model = model.to(device)
 
         # loss function
@@ -415,8 +418,8 @@ def main():
         models.extend(best_models)
 
         wandb.join()
-        
-    sweep_run = wandb.init(project=f"{args.name}-sweeps", 
+
+    sweep_run = wandb.init(project=f"{args.name}-sweeps",
                            name=sweep_run_name,
                            config=args,
                            dir=get_dir(args.output_dir))
@@ -444,7 +447,7 @@ def main():
                                         download=args.download_data,
                                         save_cache=True,
                                         train=False,
-                                        transform=BaselineTrainTransform(bands=args.bands, vegetative_indeces=args.vegetative_indeces , crop_size=args.crop_size))
+                                        transform=BaselineTrainTransform(bands=args.bands, vegetative_indeces=args.vegetative_indeces, crop_size=args.crop_size))
         test_loader = DataLoader(
             test_dataset, batch_size=1, shuffle=False, num_workers=8)
         preds = predict(models, test_loader, device,
@@ -471,20 +474,20 @@ def main():
 
 if __name__ == "__main__":
     if initial_args.sweep_path:
-        
+
         import yaml
         with open(initial_args.sweep_path, "r") as stream:
             try:
                 sweep_configuration = yaml.safe_load(stream)
-                sweep_id = wandb.sweep(sweep=sweep_configuration, project=initial_args.name)
-                wandb.agent(sweep_id, function=main, project=initial_args.name, count=initial_args.sweep_count)
-                
+                sweep_id = wandb.sweep(
+                    sweep=sweep_configuration, project=initial_args.name)
+                wandb.agent(sweep_id, function=main,
+                            project=initial_args.name, count=initial_args.sweep_count)
+
             except yaml.YAMLError as exc:
-                logging.error(f"Couldn't load the sweep file. Make sure {initial_args.sweep_path} is a valid path")
+                logging.error(
+                    f"Couldn't load the sweep file. Make sure {initial_args.sweep_path} is a valid path")
                 logging.warn("doing a normal run")
                 main()
     else:
         main()
-                
-        
-        
