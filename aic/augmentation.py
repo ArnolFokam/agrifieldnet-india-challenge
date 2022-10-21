@@ -20,11 +20,11 @@ class RotateBands:
         if np.random.random() > self.p:
             angle = np.random.uniform(-abs(self.limit), abs(self.limit))
             image = ndimage.rotate(image, angle, reshape=False)
-            mask = ndimage.rotate(mask, angle, reshape=False)
+            mask = np.where(ndimage.rotate(mask, angle, reshape=False) > 0.5, 1.0, 0.0)
         
         return {
-            "image": image.astype(np.float64),
-            "mask": mask.astype(np.float64)
+            "image": image.astype(np.float32),
+            "mask": mask.astype(np.float32)
         }
         
 class NormalizeBands:

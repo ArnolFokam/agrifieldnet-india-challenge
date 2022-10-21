@@ -36,7 +36,7 @@ class BaselineTrainTransform:
         self.geometric_transform = A.Compose([
             RandomFieldAreaCrop(crop_size=self.crop_size),
             A.Flip(),
-            RotateBands(limit=180),    
+            # RotateBands(limit=30),    
         ])
 
         # transform after all the important ones, usually to convert to tensor
